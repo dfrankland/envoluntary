@@ -4,3 +4,8 @@ result-*
 
 # Ignore automatically generated direnv output
 .direnv
+
+
+# Added by cargo
+
+/target
