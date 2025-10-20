@@ -4,13 +4,13 @@ use std::{
     process::{Command, ExitStatus, Stdio},
 };
 
-pub trait SimplifiedExitOk {
+pub(crate) trait SimplifiedExitOk {
     fn simplified_exit_ok(&self) -> anyhow::Result<()>;
 }
 
 impl SimplifiedExitOk for ExitStatus {
-    /// Simplified implementation of https://github.com/rust-lang/rust/issues/84908
-    /// TODO: Remove this and use `exit_ok` when it's stabilized.
+    /// Simplified implementation of <https://github.com/rust-lang/rust/issues/84908>
+    // TODO: Remove this and use `exit_ok` when it's stabilized.
     fn simplified_exit_ok(&self) -> anyhow::Result<()> {
         match num::NonZero::try_from(self.code().unwrap_or(-1)) {
             Ok(_) => Err(anyhow::format_err!(
@@ -22,12 +22,11 @@ impl SimplifiedExitOk for ExitStatus {
     }
 }
 
-/// Run nix with some fixed arguments, appending a user provided set of arguments.
-pub fn nix(args: impl IntoIterator<Item = impl AsRef<OsStr>>) -> anyhow::Result<String> {
+pub(crate) fn nix(args: impl IntoIterator<Item = impl AsRef<OsStr>>) -> anyhow::Result<String> {
     nix_program("nix", args)
 }
 
-pub fn nix_program(
+pub(crate) fn nix_program(
     program: impl AsRef<OsStr>,
     args: impl IntoIterator<Item = impl AsRef<OsStr>>,
 ) -> anyhow::Result<String> {
