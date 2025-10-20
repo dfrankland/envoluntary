@@ -103,10 +103,8 @@ impl NixProfileCache {
         Ok(())
     }
 
-    pub fn print(&self) -> anyhow::Result<()> {
-        let profile_rc = fs::read_to_string(&self.profile_rc_file)?;
-        print!("{}", profile_rc);
-        Ok(())
+    pub fn profile_rc(&self) -> &Path {
+        &self.profile_rc_file
     }
 }
 

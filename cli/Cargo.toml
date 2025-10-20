@@ -1,0 +1,10 @@
+[package]
+name = "envoluntary"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+env-hooks.path = "../env-hooks"
+nix-dev-env.path = "../nix-dev-env"

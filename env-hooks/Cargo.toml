@@ -1,0 +1,10 @@
+[package]
+name = "env-hooks"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow.workspace = true
+indexmap.workspace = true
+shell-quote.workspace = true
+tempfile.workspace = true

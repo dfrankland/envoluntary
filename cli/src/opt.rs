@@ -7,7 +7,7 @@ use clap::Parser;
 pub struct Envoluntary {
     #[arg(long)]
     pub cache_dir: PathBuf,
-    /// https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references
+    /// <https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references>
     #[arg(long)]
     pub flake_reference: String,
     #[arg(long)]
