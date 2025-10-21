@@ -63,7 +63,7 @@ mod tests {
     fn test_error_on_exit_failure() {
         let nix_executable = create_nix_executable(r#"exit 1;"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path().as_os_str())
+            check_nix_program_version(nix_executable.path())
                 .unwrap_err()
                 .to_string(),
             format!(
@@ -77,7 +77,7 @@ mod tests {
     fn test_error_on_empty_stdout() {
         let nix_executable = create_nix_executable(r#"echo -n "";"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path().as_os_str())
+            check_nix_program_version(nix_executable.path())
                 .unwrap_err()
                 .to_string(),
             "`nix --version` failed to execute."
@@ -88,7 +88,7 @@ mod tests {
     fn test_error_on_missing_semver() {
         let nix_executable = create_nix_executable(r#"echo "hello";"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path().as_os_str())
+            check_nix_program_version(nix_executable.path())
                 .unwrap_err()
                 .to_string(),
             "SemVer from `nix --version` could not be found."
@@ -99,7 +99,7 @@ mod tests {
     fn test_error_on_too_old_version() {
         let nix_executable = create_nix_executable(r#"echo "nix (Nix) 0.0.0";"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path().as_os_str())
+            check_nix_program_version(nix_executable.path())
                 .unwrap_err()
                 .to_string(),
             "`nix` version too old for flakes."
@@ -109,12 +109,12 @@ mod tests {
     #[test]
     fn test_version_matches_minimum() {
         let nix_executable = create_nix_executable(r#"echo "nix (Nix) 2.10.0";"#);
-        check_nix_program_version(nix_executable.path().as_os_str()).unwrap();
+        check_nix_program_version(nix_executable.path()).unwrap();
     }
 
     #[test]
     fn test_version_matches_newer() {
         let nix_executable = create_nix_executable(r#"echo "nix (Nix) 2.30.0";"#);
-        check_nix_program_version(nix_executable.path().as_os_str()).unwrap();
+        check_nix_program_version(nix_executable.path()).unwrap();
     }
 }

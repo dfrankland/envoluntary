@@ -1,6 +1,7 @@
-use std::{collections::HashSet, ffi::OsString};
+use std::collections::HashSet;
 
-use shell_quote::{Fish, QuoteExt};
+use bstr::{B, BString, ByteSlice};
+use shell_quote::Fish;
 
 use crate::EnvVarsState;
 
@@ -30,56 +31,51 @@ const FISH_HOOK: &str = r#"
     end;
 "#;
 
-pub fn hook(hook_prefix: &str, export_command: &str) -> OsString {
-    OsString::from(
-        FISH_HOOK
-            .replace("{{.HookPrefix}}", hook_prefix)
-            .replace("{{.ExportCommand}}", export_command),
-    )
+pub fn hook(hook_prefix: impl AsRef<[u8]>, export_command: impl AsRef<[u8]>) -> BString {
+    BString::from(FISH_HOOK)
+        .replace("{{.HookPrefix}}", hook_prefix)
+        .replace("{{.ExportCommand}}", export_command)
+        .into()
 }
 
 pub fn export(
     env_vars_state: EnvVarsState,
     semicolon_delimited_env_vars: Option<&HashSet<String>>,
-) -> OsString {
-    env_vars_state
+) -> BString {
+    let exports = env_vars_state
         .iter()
-        .fold(OsString::new(), |mut acc, (key, state)| {
-            acc.push(if let Some(value) = state {
+        .map(|(key, state)| {
+            if let Some(value) = state {
                 export_var(key, value, semicolon_delimited_env_vars)
             } else {
                 unset_var(key)
-            });
-            acc.push("\n");
-            acc
+            }
         })
+        .collect::<Vec<_>>();
+    bstr::join("\n", exports).into()
 }
 
 fn export_var(
     key: &str,
     value: &str,
     semicolon_delimited_env_vars: Option<&HashSet<String>>,
-) -> OsString {
-    let mut script = OsString::from("set -x -g ");
-    script.push_quoted(Fish, key);
-    if let Some(sdev) = semicolon_delimited_env_vars
+) -> BString {
+    let script = bstr::join(" ", [B("set -x -g"), &Fish::quote_vec(key)]);
+    let value = if let Some(sdev) = semicolon_delimited_env_vars
         && sdev.contains(key)
     {
-        value.split(':').for_each(|value_part| {
-            script.push(" ");
-            script.push_quoted(Fish, value_part);
-        });
+        let value_parts = value.split(':').map(Fish::quote_vec).collect::<Vec<_>>();
+        bstr::join(" ", value_parts)
     } else {
-        script.push(" ");
-        script.push_quoted(Fish, value);
-    }
-    script.push(";");
-    script
+        Fish::quote_vec(value)
+    };
+    bstr::concat([&bstr::join(" ", [script, value]), B(";")]).into()
 }
 
-fn unset_var(key: &str) -> OsString {
-    let mut script = OsString::from("set -e -g ");
-    script.push_quoted(Fish, key);
-    script.push(";");
-    script
+fn unset_var(key: &str) -> BString {
+    bstr::concat([
+        &bstr::join(" ", [B("set -e -g"), &Fish::quote_vec(key)]),
+        B(";"),
+    ])
+    .into()
 }

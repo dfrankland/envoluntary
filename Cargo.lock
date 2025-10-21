@@ -179,6 +179,7 @@ name = "env-hooks"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bstr",
  "indexmap",
  "shell-quote",
  "tempfile",
@@ -189,9 +190,11 @@ name = "envoluntary"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bstr",
  "clap",
  "env-hooks",
  "nix-dev-env",
+ "shell-quote",
 ]
 
 [[package]]

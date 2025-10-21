@@ -6,6 +6,7 @@ use std::{
     path::PathBuf,
 };
 
+use bstr::B;
 use clap::Parser;
 use env_hooks::{
     BashSource, env_vars_state_from_env_vars, get_env_vars_from_bash,
@@ -13,6 +14,7 @@ use env_hooks::{
     merge_delimited_env_var, shells,
 };
 use nix_dev_env::{NixProfileCache, check_nix_version};
+use shell_quote::Bash;
 
 use crate::opt::Envoluntary;
 
@@ -61,7 +63,7 @@ fn main() -> anyhow::Result<()> {
     // Example of hook, export, and reset
     dbg!(shells::fish::hook(
         "envoluntary",
-        &format!("{} export fish", current_exe()?.to_string_lossy())
+        bstr::join(" ", [&Bash::quote_vec(&current_exe()?), B("export fish")])
     ));
     let mut semicolon_delimited_env_vars = HashSet::new();
     semicolon_delimited_env_vars.insert(String::from("PATH"));

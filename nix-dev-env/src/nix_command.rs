@@ -80,21 +80,15 @@ mod tests {
     #[test]
     fn test_run_process_success() {
         let nix_executable = create_nix_executable(r#"exit 0;"#);
-        let stdout_content = nix_program(
-            nix_executable.path().as_os_str(),
-            Vec::<&str>::with_capacity(0),
-        )
-        .unwrap();
+        let stdout_content =
+            nix_program(nix_executable.path(), Vec::<&str>::with_capacity(0)).unwrap();
         assert_eq!(stdout_content, "");
     }
 
     #[test]
     fn test_run_process_failure() {
         let nix_executable = create_nix_executable(r#"exit 1;"#);
-        let result = nix_program(
-            nix_executable.path().as_os_str(),
-            Vec::<&str>::with_capacity(0),
-        );
+        let result = nix_program(nix_executable.path(), Vec::<&str>::with_capacity(0));
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
@@ -107,11 +101,8 @@ mod tests {
     #[test]
     fn test_run_process_stdout() {
         let nix_executable = create_nix_executable(r#"echo "echoed";"#);
-        let stdout_content = nix_program(
-            nix_executable.path().as_os_str(),
-            Vec::<&str>::with_capacity(0),
-        )
-        .unwrap();
+        let stdout_content =
+            nix_program(nix_executable.path(), Vec::<&str>::with_capacity(0)).unwrap();
         assert_eq!(stdout_content, "echoed\n");
     }
 }

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow.workspace = true
+bstr.workspace = true
 indexmap.workspace = true
 shell-quote.workspace = true
 tempfile.workspace = true

@@ -3,14 +3,15 @@ pub mod shells;
 use std::{
     collections::{BTreeMap, HashSet},
     env,
-    ffi::{OsStr, OsString},
+    ffi::OsStr,
     fs, num,
     path::PathBuf,
     process::{Command, ExitStatus},
 };
 
+use bstr::{B, BString, ByteSlice};
 use indexmap::IndexSet;
-use shell_quote::{Bash, QuoteExt};
+use shell_quote::Bash;
 
 pub type EnvVars = BTreeMap<String, String>;
 pub type EnvVarsState = BTreeMap<String, Option<String>>;
@@ -61,7 +62,7 @@ pub fn get_env_vars_from_current_process() -> EnvVars {
 
 pub enum BashSource {
     File(PathBuf),
-    Script(OsString),
+    Script(BString),
 }
 
 impl AsRef<BashSource> for BashSource {
@@ -71,19 +72,11 @@ impl AsRef<BashSource> for BashSource {
 }
 
 impl BashSource {
-    fn to_command_string(&self) -> OsString {
-        let mut command_string = OsString::new();
+    fn to_command_string(&self) -> BString {
         match &self {
-            Self::File(path) => {
-                command_string.push("source ");
-                command_string.push_quoted(Bash, path.as_os_str());
-            }
-            Self::Script(script) => {
-                command_string.push("eval ");
-                command_string.push_quoted(Bash, script);
-            }
-        };
-        command_string
+            Self::File(path) => bstr::join(" ", [B("source"), &Bash::quote_vec(path)]).into(),
+            Self::Script(script) => bstr::join(" ", [B("eval"), &Bash::quote_vec(script)]).into(),
+        }
     }
 }
 
@@ -111,13 +104,17 @@ pub fn get_env_vars_from_bash(
 ) -> anyhow::Result<EnvVars> {
     let bash_env_vars_file = tempfile::NamedTempFile::new()?;
 
-    let mut command_string = source.as_ref().to_command_string();
-    command_string.push(" && env -0 > ");
-    command_string.push_quoted(Bash, bash_env_vars_file.path().as_os_str());
-
+    let command_string = bstr::join(
+        " ",
+        [
+            &source.as_ref().to_command_string(),
+            B("&& env -0 >"),
+            &Bash::quote_vec(bash_env_vars_file.path()),
+        ],
+    );
     let mut command = Command::new("bash");
     command
-        .args([OsStr::new("-c"), &command_string])
+        .args([OsStr::new("-c"), command_string.to_os_str()?])
         .env_clear();
 
     if let Some(env_vars) = env_vars {
