@@ -1,5 +1,7 @@
+pub mod shells;
+
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     env,
     ffi::{OsStr, OsString},
     fs, num,
@@ -20,6 +22,35 @@ pub fn get_old_env_vars_to_be_updated(old_env_vars: EnvVars, new_env_vars: &EnvV
             if new_env_vars.contains_key(&key) && new_env_vars.get(&key) != Some(&value) {
                 acc.insert(key, value);
             }
+            acc
+        })
+}
+
+// TODO: Create new type patern for `EnvVars` and `EnvVarsState`?
+// impl From<EnvVars> for EnvVarsState {
+//   fn from(value: EnvVars) -> Self {
+//     value
+//       .into_iter()
+//       .map(|(key, value)| (key, Some(value)))
+//       .collect()
+//   }
+// }
+pub fn env_vars_state_from_env_vars(env_vars: EnvVars) -> EnvVarsState {
+    env_vars
+        .into_iter()
+        .map(|(key, value)| (key, Some(value)))
+        .collect()
+}
+
+pub fn get_env_vars_reset(
+    mut old_env_vars_that_were_updated: EnvVars,
+    new_env_vars: HashSet<String>,
+) -> EnvVarsState {
+    new_env_vars
+        .into_iter()
+        .fold(EnvVarsState::new(), |mut acc, key| {
+            let value = old_env_vars_that_were_updated.remove(&key);
+            acc.insert(key, value);
             acc
         })
 }

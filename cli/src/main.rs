@@ -1,11 +1,16 @@
 mod opt;
 
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashSet},
+    env::current_exe,
+    path::PathBuf,
+};
 
 use clap::Parser;
 use env_hooks::{
-    BashSource, get_env_vars_from_bash, get_env_vars_from_current_process,
-    get_old_env_vars_to_be_updated, merge_delimited_env_var,
+    BashSource, env_vars_state_from_env_vars, get_env_vars_from_bash,
+    get_env_vars_from_current_process, get_env_vars_reset, get_old_env_vars_to_be_updated,
+    merge_delimited_env_var, shells,
 };
 use nix_dev_env::{NixProfileCache, check_nix_version};
 
@@ -53,7 +58,27 @@ fn main() -> anyhow::Result<()> {
         &mut new_env_vars,
     );
 
-    dbg!(new_env_vars, old_env_vars_to_be_updated);
+    // Example of hook, export, and reset
+    dbg!(shells::fish::hook(
+        "envoluntary",
+        &format!("{} export fish", current_exe()?.to_string_lossy())
+    ));
+    let mut semicolon_delimited_env_vars = HashSet::new();
+    semicolon_delimited_env_vars.insert(String::from("PATH"));
+    semicolon_delimited_env_vars.insert(String::from("XDG_DATA_DIRS"));
+    dbg!(shells::fish::export(
+        env_vars_state_from_env_vars(new_env_vars.clone()),
+        Some(&semicolon_delimited_env_vars)
+    ));
+    dbg!(shells::fish::export(
+        // TODO: `old_env_vars_to_be_updated` and `new_env_vars.into_keys().collect()` need to be made into
+        // state maintained as an env var
+        get_env_vars_reset(
+            old_env_vars_to_be_updated,
+            new_env_vars.into_keys().collect()
+        ),
+        Some(&semicolon_delimited_env_vars)
+    ));
 
     Ok(())
 }
