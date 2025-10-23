@@ -1,3 +1,4 @@
+mod config;
 mod opt;
 
 use std::{
@@ -22,7 +23,13 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use shell_quote::Bash;
 
-use crate::opt::Envoluntary;
+use crate::{
+    config::{EnvoluntaryConfig, get_cache_dir, get_config_path},
+    opt::{
+        Envoluntary, EnvoluntaryCommands, EnvoluntaryConfigCommands, EnvoluntaryShell,
+        EnvoluntaryShellCommands,
+    },
+};
 
 const ENVOLUNTARY_ENV_STATE_VAR_KEY: &str = "ENVOLUNTARY_ENV_STATE";
 
@@ -39,98 +46,170 @@ static SEMICOLON_DELIMITED_ENV_VARS: Lazy<HashSet<String>> = Lazy::new(|| {
 fn main() -> anyhow::Result<()> {
     let opt = Envoluntary::parse();
 
-    check_nix_version()?;
-
-    // Example of export and reset
-
-    let current_dir_state = state::ShellPromptState::get_current_dir(opt.current_dir)?;
-
-    let match_rcs = current_dir_state.match_rcs(|_current_dir| {
-        // TODO: Use config to retrieve which flake references to use
-        Ok(vec![opt.flake_reference.clone()])
-    })?;
-
-    match match_rcs {
-        MatchRcs::NoRcs(no_rcs_state) => {
-            let ready_for_full_reset_or_done =
-                no_rcs_state.get_env_state_var(ENVOLUNTARY_ENV_STATE_VAR_KEY);
-            match ready_for_full_reset_or_done {
-                ReadyForFullResetOrDone::ReadyForFullReset(ready_for_full_reset_state) => {
-                    ready_for_full_reset_state.reset_env_vars(|env_state_var_value| {
-                        let env_state =
-                            EnvoluntaryEnvState::decode(env_state_var_value.as_bytes())?;
-                        dbg!(shells::fish::export(
-                            env_state.env_vars_reset,
-                            Some(&SEMICOLON_DELIMITED_ENV_VARS)
-                        ));
-                        Ok(())
-                    })?
+    if let Some(command) = opt.command {
+        match command {
+            EnvoluntaryCommands::Config { config } => match config {
+                EnvoluntaryConfigCommands::PrintPath => {
+                    config::print_path()?;
                 }
-                ReadyForFullResetOrDone::Done => {
-                    // 🤫 nothing to do
+                EnvoluntaryConfigCommands::Edit {
+                    config_path,
+                    editor_program,
+                } => config::edit(config_path.as_deref(), editor_program.as_deref())?,
+                EnvoluntaryConfigCommands::AddEntry {
+                    config_path,
+                    pattern,
+                    flake_reference,
+                } => {
+                    config::add_entry(config_path.as_deref(), pattern, flake_reference)?;
                 }
-            };
-        }
-        MatchRcs::Rcs(rcs_state) => {
-            let get_env_state_var = rcs_state.get_env_state_var(ENVOLUNTARY_ENV_STATE_VAR_KEY);
-            match get_env_state_var {
-                GetEnvStateVar::NoEnvStateVar(no_env_state_var_state) => {
-                    no_env_state_var_state.set_new_env_state_var(|rcs| {
-                        // TODO: Make this work for more than 1 flake matching
-                        for flake_reference in rcs {
-                            let cache_profile = get_cache_profile(
-                                opt.cache_dir.clone(),
-                                flake_reference.clone(),
-                                opt.force_update,
-                            )?;
-                            export_env_vars(flake_reference.clone(), &cache_profile)?;
-                        }
-                        Ok(())
+                EnvoluntaryConfigCommands::PrintMatchingEntries { config_path, path } => {
+                    config::print_matching_entries(config_path.as_deref(), &path)?;
+                }
+            },
+            // TODO: Clean this up into its own module
+            EnvoluntaryCommands::Shell { shell } => match shell {
+                EnvoluntaryShellCommands::Hook { shell } => match shell {
+                    EnvoluntaryShell::Fish => {
+                        println!(
+                            "{}",
+                            shells::fish::hook(
+                                "envoluntary",
+                                bstr::join(
+                                    " ",
+                                    [&Bash::quote_vec(&current_exe()?), B("export fish")]
+                                )
+                            )
+                        );
+                    }
+                },
+                EnvoluntaryShellCommands::Export {
+                    config_path,
+                    shell: _,
+                    cache_dir,
+                    flake_references,
+                    force_update,
+                    current_dir,
+                } => {
+                    // TODO: Use `shell`
+                    let config_path = get_config_path(config_path.as_deref())?;
+                    let envoluntary_config = EnvoluntaryConfig::load(&config_path)?;
+                    let cache_dir = get_cache_dir(cache_dir.as_deref())?;
+
+                    check_nix_version()?;
+
+                    let current_dir_state = state::ShellPromptState::get_current_dir(current_dir)?;
+
+                    let match_rcs = current_dir_state.match_rcs(|current_dir| {
+                        let flake_references = if let Some(ref flake_references) = flake_references
+                        {
+                            flake_references.clone()
+                        } else {
+                            envoluntary_config
+                                .matching_entries(current_dir)
+                                .into_iter()
+                                .map(|entry| entry.flake_reference)
+                                .collect()
+                        };
+                        Ok(flake_references)
                     })?;
+
+                    match match_rcs {
+                        MatchRcs::NoRcs(no_rcs_state) => {
+                            let ready_for_full_reset_or_done =
+                                no_rcs_state.get_env_state_var(ENVOLUNTARY_ENV_STATE_VAR_KEY);
+                            match ready_for_full_reset_or_done {
+                                ReadyForFullResetOrDone::ReadyForFullReset(
+                                    ready_for_full_reset_state,
+                                ) => ready_for_full_reset_state.reset_env_vars(
+                                    |env_state_var_value| {
+                                        let env_state = EnvoluntaryEnvState::decode(
+                                            env_state_var_value.as_bytes(),
+                                        )?;
+                                        println!(
+                                            "{}",
+                                            shells::fish::export(
+                                                env_state.env_vars_reset,
+                                                Some(&SEMICOLON_DELIMITED_ENV_VARS)
+                                            )
+                                        );
+                                        Ok(())
+                                    },
+                                )?,
+                                ReadyForFullResetOrDone::Done => {
+                                    // 🤫 nothing to do
+                                }
+                            };
+                        }
+                        MatchRcs::Rcs(rcs_state) => {
+                            let get_env_state_var =
+                                rcs_state.get_env_state_var(ENVOLUNTARY_ENV_STATE_VAR_KEY);
+                            match get_env_state_var {
+                                GetEnvStateVar::NoEnvStateVar(no_env_state_var_state) => {
+                                    no_env_state_var_state.set_new_env_state_var(|rcs| {
+                                        // TODO: Make this work for more than 1 flake matching
+                                        for flake_reference in rcs {
+                                            let cache_profile = get_cache_profile(
+                                                cache_dir.clone(),
+                                                flake_reference.clone(),
+                                                force_update,
+                                            )?;
+                                            export_env_vars(
+                                                flake_reference.clone(),
+                                                &cache_profile,
+                                            )?;
+                                        }
+                                        Ok(())
+                                    })?;
+                                }
+                                GetEnvStateVar::EnvStateVar(env_state_var_state) => {
+                                    env_state_var_state.reset_and_set_new_env_state_var(
+                                        |rcs, env_state_var_value| {
+                                            let env_state = EnvoluntaryEnvState::decode(
+                                                env_state_var_value.as_bytes(),
+                                            )?;
+
+                                            if rcs == env_state.flake_references {
+                                                return Ok((rcs, env_state.flake_references));
+                                            }
+
+                                            println!(
+                                                "{}",
+                                                shells::fish::export(
+                                                    env_state.env_vars_reset,
+                                                    Some(&SEMICOLON_DELIMITED_ENV_VARS)
+                                                )
+                                            );
+                                            Ok((rcs, env_state.flake_references))
+                                        },
+                                        |(rcs, env_state_flake_references)| {
+                                            if rcs == env_state_flake_references {
+                                                return Ok(());
+                                            }
+
+                                            // TODO: Make this work for more than 1 flake matching
+                                            for flake_reference in rcs {
+                                                let cache_profile = get_cache_profile(
+                                                    cache_dir.clone(),
+                                                    flake_reference.clone(),
+                                                    force_update,
+                                                )?;
+                                                export_env_vars(
+                                                    flake_reference.clone(),
+                                                    &cache_profile,
+                                                )?;
+                                            }
+                                            Ok(())
+                                        },
+                                    )?;
+                                }
+                            };
+                        }
+                    };
                 }
-                GetEnvStateVar::EnvStateVar(env_state_var_state) => {
-                    env_state_var_state.reset_and_set_new_env_state_var(
-                        |rcs, env_state_var_value| {
-                            let env_state =
-                                EnvoluntaryEnvState::decode(env_state_var_value.as_bytes())?;
-
-                            if rcs == env_state.flake_references {
-                                return Ok((rcs, env_state.flake_references));
-                            }
-
-                            dbg!(shells::fish::export(
-                                env_state.env_vars_reset,
-                                Some(&SEMICOLON_DELIMITED_ENV_VARS)
-                            ));
-                            Ok((rcs, env_state.flake_references))
-                        },
-                        |(rcs, env_state_flake_references)| {
-                            if rcs == env_state_flake_references {
-                                return Ok(());
-                            }
-
-                            // TODO: Make this work for more than 1 flake matching
-                            for flake_reference in rcs {
-                                let cache_profile = get_cache_profile(
-                                    opt.cache_dir.clone(),
-                                    flake_reference.clone(),
-                                    opt.force_update,
-                                )?;
-                                export_env_vars(flake_reference.clone(), &cache_profile)?;
-                            }
-                            Ok(())
-                        },
-                    )?;
-                }
-            };
+            },
         }
     };
-
-    // Example of hook
-    dbg!(shells::fish::hook(
-        "envoluntary",
-        bstr::join(" ", [&Bash::quote_vec(&current_exe()?), B("export fish")])
-    ));
 
     Ok(())
 }
@@ -194,10 +273,13 @@ fn export_env_vars(flake_reference: String, cache_profile: &NixProfileCache) -> 
         String::from(ENVOLUNTARY_ENV_STATE_VAR_KEY),
         env_state.encode()?,
     );
-    dbg!(shells::fish::export(
-        env_vars_state_from_env_vars(new_env_vars),
-        Some(&SEMICOLON_DELIMITED_ENV_VARS)
-    ));
+    println!(
+        "{}",
+        shells::fish::export(
+            env_vars_state_from_env_vars(new_env_vars),
+            Some(&SEMICOLON_DELIMITED_ENV_VARS)
+        )
+    );
     Ok(())
 }
 
