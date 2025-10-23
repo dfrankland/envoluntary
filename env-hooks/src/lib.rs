@@ -1,4 +1,5 @@
 pub mod shells;
+pub mod state;
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -46,14 +47,17 @@ pub fn env_vars_state_from_env_vars(env_vars: EnvVars) -> EnvVarsState {
 pub fn get_env_vars_reset(
     mut old_env_vars_that_were_updated: EnvVars,
     new_env_vars: HashSet<String>,
+    env_state_var_key: String,
 ) -> EnvVarsState {
-    new_env_vars
+    let mut env_vars_state = new_env_vars
         .into_iter()
         .fold(EnvVarsState::new(), |mut acc, key| {
             let value = old_env_vars_that_were_updated.remove(&key);
             acc.insert(key, value);
             acc
-        })
+        });
+    env_vars_state.insert(env_state_var_key, None);
+    env_vars_state
 }
 
 pub fn get_env_vars_from_current_process() -> EnvVars {

@@ -12,4 +12,6 @@ pub struct Envoluntary {
     pub flake_reference: String,
     #[arg(long)]
     pub force_update: bool,
+    #[arg(long)]
+    pub current_dir: Option<PathBuf>,
 }

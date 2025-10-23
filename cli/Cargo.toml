@@ -5,8 +5,13 @@ edition = "2024"
 
 [dependencies]
 anyhow.workspace = true
+base64 = "0.22.1"
 bstr.workspace = true
 clap.workspace = true
 env-hooks.path = "../env-hooks"
 nix-dev-env.path = "../nix-dev-env"
+once_cell.workspace = true
+ruzstd = "0.8.1"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 shell-quote.workspace = true
