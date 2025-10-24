@@ -43,7 +43,7 @@ pub fn print_hook(shell: EnvoluntaryShell) -> anyhow::Result<()> {
                     "envoluntary",
                     bstr::join(
                         " ",
-                        [&Fish::quote_vec(&env::current_exe()?), B("export fish")]
+                        [&Fish::quote_vec(&env::current_exe()?), B("shell export fish")]
                     )
                 )
             );
