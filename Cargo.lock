@@ -307,6 +307,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
+ "sha1",
  "shell-quote",
  "toml",
 ]
