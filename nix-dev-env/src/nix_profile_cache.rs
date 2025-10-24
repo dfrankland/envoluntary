@@ -16,23 +16,20 @@ use crate::nix_command;
 pub struct NixProfileCache {
     cache_dir: PathBuf,
     flake_inputs_dir: PathBuf,
-    flake_reference: String,
-    flake_reference_is_path_type: bool,
+    flake_reference: FlakeReference,
     files_to_watch: Vec<PathBuf>,
     profile_symlink: PathBuf,
     profile_rc_file: PathBuf,
 }
 
 impl NixProfileCache {
-    pub fn new(cache_dir: PathBuf, flake_reference: String) -> anyhow::Result<Self> {
+    pub fn new(cache_dir: PathBuf, flake_reference: &str) -> anyhow::Result<Self> {
         let flake_inputs_dir = cache_dir.join("flake-inputs");
 
-        let flake_reference_is_path_type = flake_reference_is_path_type(&flake_reference);
+        let flake_reference = FlakeReference::parse(flake_reference)?;
 
         let mut files_to_watch = vec![];
-
-        let hash = if flake_reference_is_path_type {
-            let flake_dir = parse_flake_dir(&flake_reference)?;
+        let hash = if let Some(flake_dir) = &flake_reference.flake_dir {
             files_to_watch.extend_from_slice(&[
                 flake_dir.join("flake.nix"),
                 flake_dir.join("flake.lock"),
@@ -40,7 +37,7 @@ impl NixProfileCache {
             ]);
             hash_files(&files_to_watch)?
         } else {
-            hash_flake_reference(&flake_reference)?
+            hash_flake_reference(&flake_reference.flake_reference_string)?
         };
 
         let profile_symlink = cache_dir.join(format!("flake-profile-{}", hash));
@@ -49,7 +46,6 @@ impl NixProfileCache {
             cache_dir,
             flake_inputs_dir,
             flake_reference,
-            flake_reference_is_path_type,
             files_to_watch,
             profile_symlink,
             profile_rc_file,
@@ -84,7 +80,7 @@ impl NixProfileCache {
             OsStr::new("print-dev-env"),
             OsStr::new("--profile"),
             tmp_profile.as_os_str(),
-            OsStr::new(&self.flake_reference),
+            OsStr::new(&self.flake_reference.flake_reference_string),
         ])?;
 
         fs::File::create(&self.profile_rc_file)?.write_all(stdout_content.as_bytes())?;
@@ -92,8 +88,8 @@ impl NixProfileCache {
         add_gcroot(&tmp_profile, &self.profile_symlink)?;
         fs::remove_file(&tmp_profile)?;
 
-        if self.flake_reference_is_path_type {
-            for input in get_flake_input_paths(&self.flake_reference)? {
+        if self.flake_reference.flake_dir.is_some() {
+            for input in get_flake_input_paths(&self.flake_reference.flake_reference_string)? {
                 let store_path = PathBuf::from("/nix/store").join(&input);
                 let symlink_path = self.flake_inputs_dir.join(&input);
                 add_gcroot(&store_path, &symlink_path)?;
@@ -108,20 +104,52 @@ impl NixProfileCache {
     }
 }
 
-fn flake_reference_is_path_type(flake_reference: &str) -> bool {
-    flake_reference.starts_with("path:")
-        || flake_reference.starts_with('/')
-        || flake_reference.starts_with("./")
-        || flake_reference.starts_with("../")
+#[derive(Debug, Clone)]
+struct FlakeReference {
+    pub flake_reference_string: String,
+    pub flake_dir: Option<PathBuf>,
 }
 
-fn parse_flake_dir(flake_reference: &str) -> anyhow::Result<PathBuf> {
-    let mut flake_reference_iter = flake_reference.split('#');
-    let flake_uri = flake_reference_iter
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Missing flake URI"))?;
-    let flake_dir = PathBuf::from(flake_uri.strip_prefix("path:").unwrap_or(flake_uri));
-    Ok(flake_dir)
+impl FlakeReference {
+    pub fn parse(flake_reference: &str) -> anyhow::Result<Self> {
+        let mut flake_reference_iter = flake_reference.split('#');
+        let flake_uri = flake_reference_iter
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("Missing flake URI"))?;
+        let flake_specifier = flake_reference_iter.next();
+
+        let expanded_flake_reference_and_flake_dir =
+            if FlakeReference::is_path_type(flake_reference) {
+                let flake_dir_str =
+                    shellexpand::full(flake_uri.strip_prefix("path:").unwrap_or(flake_uri))?;
+                let expanded_flake_reference = format!(
+                    "{}{}{}",
+                    &flake_dir_str,
+                    flake_specifier.map(|_| "#").unwrap_or(""),
+                    flake_specifier.unwrap_or("")
+                );
+                Some((expanded_flake_reference, flake_dir_str))
+            } else {
+                None
+            };
+
+        Ok(Self {
+            flake_dir: expanded_flake_reference_and_flake_dir
+                .as_ref()
+                .map(|x| PathBuf::from(x.1.to_string())),
+            flake_reference_string: expanded_flake_reference_and_flake_dir
+                .map(|x| x.0)
+                .unwrap_or_else(|| String::from(flake_reference)),
+        })
+    }
+
+    fn is_path_type(flake_reference: &str) -> bool {
+        flake_reference.starts_with("path:")
+            || flake_reference.starts_with('~')
+            || flake_reference.starts_with('/')
+            || flake_reference.starts_with("./")
+            || flake_reference.starts_with("../")
+    }
 }
 
 fn hash_files(filenames: impl AsRef<[PathBuf]>) -> anyhow::Result<String> {

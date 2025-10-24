@@ -97,7 +97,7 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
                             |mut acc, flake_reference| -> anyhow::Result<EnvVarsState> {
                                 let cache_profile = get_cache_profile(
                                     &cache_dir,
-                                    flake_reference.clone(),
+                                    &flake_reference,
                                     args.force_update,
                                 )?;
                                 acc.extend(get_export_env_vars_state(
@@ -137,7 +137,7 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
                                 |mut acc, flake_reference| -> anyhow::Result<EnvVarsState> {
                                     let cache_profile = get_cache_profile(
                                         &cache_dir,
-                                        flake_reference.clone(),
+                                        &flake_reference,
                                         args.force_update,
                                     )?;
                                     acc.extend(get_export_env_vars_state(
@@ -172,10 +172,10 @@ pub fn print_cache_path(args: EnvoluntaryShellPrintCachePathArgs) -> anyhow::Res
 
 fn get_cache_profile(
     cache_dir: &Path,
-    flake_reference: String,
+    flake_reference: &str,
     force_update: bool,
 ) -> anyhow::Result<NixProfileCache> {
-    let cach_sub_dir = get_cache_sub_dir(cache_dir, &flake_reference);
+    let cach_sub_dir = get_cache_sub_dir(cache_dir, flake_reference);
     let cache_profile = NixProfileCache::new(cach_sub_dir, flake_reference)?;
 
     if force_update || cache_profile.needs_update()? {
