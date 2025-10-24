@@ -3,14 +3,13 @@ pub mod state;
 
 use std::{
     collections::{BTreeMap, HashSet},
-    env,
-    ffi::OsStr,
-    fs, num,
+    env, fs, num,
     path::PathBuf,
-    process::{Command, ExitStatus},
+    process::ExitStatus,
 };
 
 use bstr::{B, BString, ByteSlice};
+use duct::cmd;
 use indexmap::IndexSet;
 use shell_quote::Bash;
 
@@ -116,17 +115,13 @@ pub fn get_env_vars_from_bash(
             &Bash::quote_vec(bash_env_vars_file.path()),
         ],
     );
-    let mut command = Command::new("bash");
-    command
-        .args([OsStr::new("-c"), command_string.to_os_str()?])
-        .env_clear();
-
-    if let Some(env_vars) = env_vars {
-        command.envs(env_vars);
-    }
-
-    let exit_status = command.spawn()?.wait()?;
-    exit_status
+    let handle = cmd!("bash", "-c", command_string.to_os_str()?)
+        .full_env(env_vars.unwrap_or_default())
+        .stdout_to_stderr()
+        .start()?;
+    let output = handle.wait()?;
+    output
+        .status
         .simplified_exit_ok()
         .map_err(|e| anyhow::format_err!("Bash command to retrieve env vars failed:\n{e}"))?;
 

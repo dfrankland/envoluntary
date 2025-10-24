@@ -9,6 +9,7 @@ base64 = "0.22.1"
 bstr.workspace = true
 clap.workspace = true
 config = "0.15.18"
+duct.workspace = true
 env-hooks.path = "../env-hooks"
 nix-dev-env.path = "../nix-dev-env"
 once_cell.workspace = true

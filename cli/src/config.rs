@@ -3,9 +3,9 @@ use std::{
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
-    process::Command,
 };
 
+use duct::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -25,10 +25,7 @@ pub fn edit(
         &env::var_os("EDITOR")
             .ok_or_else(|| anyhow::anyhow!("Couldn't find $EDITOR for config."))?
     };
-    Command::new(editor_program)
-        .arg(config_path)
-        .spawn()?
-        .wait()?;
+    cmd!(editor_program, config_path).start()?.wait()?;
     Ok(())
 }
 
