@@ -92,5 +92,6 @@ pub struct EnvoluntaryShellPrintCachePathArgs {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum EnvoluntaryShell {
+    Bash,
     Fish,
 }
