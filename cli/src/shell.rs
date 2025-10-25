@@ -54,6 +54,11 @@ pub fn print_hook(shell: EnvoluntaryShell) -> anyhow::Result<()> {
                 [&Fish::quote_vec(&current_exe), B("shell export fish")],
             ),
         ),
+        EnvoluntaryShell::Json => {
+            return Err(anyhow::anyhow!(
+                "JSON isn't is a shell, so there's no hook to use."
+            ));
+        }
         EnvoluntaryShell::Zsh => shells::zsh::hook(
             CLI_NAME,
             bstr::join(" ", [&Zsh::quote_vec(&current_exe), B("shell export zsh")]),
@@ -303,6 +308,9 @@ fn print_shell_export(shell: EnvoluntaryShell, env_vars_state: EnvVarsState) {
         }
         EnvoluntaryShell::Fish => {
             shells::fish::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))
+        }
+        EnvoluntaryShell::Json => {
+            shells::json::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))
         }
         EnvoluntaryShell::Zsh => {
             shells::zsh::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))

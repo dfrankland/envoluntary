@@ -321,6 +321,7 @@ dependencies = [
  "duct",
  "indexmap",
  "once_cell",
+ "serde_json",
  "shell-quote",
  "tempfile",
 ]

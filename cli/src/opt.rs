@@ -94,5 +94,6 @@ pub struct EnvoluntaryShellPrintCachePathArgs {
 pub enum EnvoluntaryShell {
     Bash,
     Fish,
+    Json,
     Zsh,
 }

@@ -9,5 +9,6 @@ bstr.workspace = true
 duct.workspace = true
 indexmap.workspace = true
 once_cell.workspace = true
+serde_json.workspace = true
 shell-quote.workspace = true
 tempfile.workspace = true
