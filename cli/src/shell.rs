@@ -16,7 +16,7 @@ use nix_dev_env::{NixProfileCache, check_nix_version};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
-use shell_quote::{Bash, Fish};
+use shell_quote::{Bash, Fish, Zsh};
 
 use crate::config::{EnvoluntaryConfig, get_cache_dir, get_config_path};
 use crate::constants::CLI_NAME;
@@ -37,38 +37,30 @@ static SEMICOLON_DELIMITED_ENV_VARS: Lazy<HashSet<String>> = Lazy::new(|| {
 });
 
 pub fn print_hook(shell: EnvoluntaryShell) -> anyhow::Result<()> {
-    match shell {
-        EnvoluntaryShell::Bash => {
-            println!(
-                "{}",
-                shells::bash::hook(
-                    CLI_NAME,
-                    bstr::join(
-                        " ",
-                        [
-                            &Bash::quote_vec(&env::current_exe()?),
-                            B("shell export bash")
-                        ]
-                    )
-                )
-            );
-        }
-        EnvoluntaryShell::Fish => {
-            println!(
-                "{}",
-                shells::fish::hook(
-                    CLI_NAME,
-                    bstr::join(
-                        " ",
-                        [
-                            &Fish::quote_vec(&env::current_exe()?),
-                            B("shell export fish")
-                        ]
-                    )
-                )
-            );
-        }
-    }
+    let current_exe = env::current_exe()?;
+
+    let hook = match shell {
+        EnvoluntaryShell::Bash => shells::bash::hook(
+            CLI_NAME,
+            bstr::join(
+                " ",
+                [&Bash::quote_vec(&current_exe), B("shell export bash")],
+            ),
+        ),
+        EnvoluntaryShell::Fish => shells::fish::hook(
+            CLI_NAME,
+            bstr::join(
+                " ",
+                [&Fish::quote_vec(&current_exe), B("shell export fish")],
+            ),
+        ),
+        EnvoluntaryShell::Zsh => shells::zsh::hook(
+            CLI_NAME,
+            bstr::join(" ", [&Zsh::quote_vec(&current_exe), B("shell export zsh")]),
+        ),
+    };
+
+    println!("{}", hook);
 
     Ok(())
 }
@@ -311,6 +303,9 @@ fn print_shell_export(shell: EnvoluntaryShell, env_vars_state: EnvVarsState) {
         }
         EnvoluntaryShell::Fish => {
             shells::fish::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))
+        }
+        EnvoluntaryShell::Zsh => {
+            shells::zsh::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))
         }
     };
     println!("{}", export);
