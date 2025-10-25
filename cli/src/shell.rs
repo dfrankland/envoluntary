@@ -16,9 +16,10 @@ use nix_dev_env::{NixProfileCache, check_nix_version};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
-use shell_quote::Fish;
+use shell_quote::{Bash, Fish};
 
 use crate::config::{EnvoluntaryConfig, get_cache_dir, get_config_path};
+use crate::constants::CLI_NAME;
 use crate::opt::{
     EnvoluntaryShell, EnvoluntaryShellExportArgs, EnvoluntaryShellPrintCachePathArgs,
 };
@@ -37,11 +38,26 @@ static SEMICOLON_DELIMITED_ENV_VARS: Lazy<HashSet<String>> = Lazy::new(|| {
 
 pub fn print_hook(shell: EnvoluntaryShell) -> anyhow::Result<()> {
     match shell {
+        EnvoluntaryShell::Bash => {
+            println!(
+                "{}",
+                shells::bash::hook(
+                    CLI_NAME,
+                    bstr::join(
+                        " ",
+                        [
+                            &Bash::quote_vec(&env::current_exe()?),
+                            B("shell export bash")
+                        ]
+                    )
+                )
+            );
+        }
         EnvoluntaryShell::Fish => {
             println!(
                 "{}",
                 shells::fish::hook(
-                    "envoluntary",
+                    CLI_NAME,
                     bstr::join(
                         " ",
                         [
@@ -290,6 +306,9 @@ fn get_new_env_vars(cache_profile: &NixProfileCache) -> anyhow::Result<EnvVarUpd
 
 fn print_shell_export(shell: EnvoluntaryShell, env_vars_state: EnvVarsState) {
     let export = match shell {
+        EnvoluntaryShell::Bash => {
+            shells::bash::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))
+        }
         EnvoluntaryShell::Fish => {
             shells::fish::export(env_vars_state, Some(&SEMICOLON_DELIMITED_ENV_VARS))
         }

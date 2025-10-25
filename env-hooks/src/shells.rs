@@ -1,2 +1,2 @@
+pub mod bash;
 pub mod fish;
-// TODO: mod bash;

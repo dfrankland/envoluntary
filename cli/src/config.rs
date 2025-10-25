@@ -9,6 +9,8 @@ use duct::cmd;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use crate::constants::CLI_NAME;
+
 pub fn print_path() -> anyhow::Result<()> {
     println!("{}", get_config_path(None)?.display());
     Ok(())
@@ -114,9 +116,7 @@ pub fn get_config_path(provided_config_path: Option<&Path>) -> anyhow::Result<Pa
     if let Some(config_path) = provided_config_path {
         return Ok(PathBuf::from(config_path));
     }
-    Ok(get_config_home_dir()?
-        .join("envoluntary")
-        .join("config.toml"))
+    Ok(get_config_home_dir()?.join(CLI_NAME).join("config.toml"))
 }
 
 fn get_config_home_dir() -> anyhow::Result<PathBuf> {
@@ -132,7 +132,7 @@ pub fn get_cache_dir(provided_cache_dir: Option<&Path>) -> anyhow::Result<PathBu
     if let Some(cache_dir) = provided_cache_dir {
         return Ok(PathBuf::from(cache_dir));
     }
-    Ok(get_cache_home_dir()?.join("envoluntary"))
+    Ok(get_cache_home_dir()?.join(CLI_NAME))
 }
 
 fn get_cache_home_dir() -> anyhow::Result<PathBuf> {
