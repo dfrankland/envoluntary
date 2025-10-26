@@ -7,7 +7,12 @@ license = "MIT"
 repository = "https://github.com/dfrankland/envoluntary"
 documentation = "https://docs.rs/nix-dev-env"
 readme = "README.md"
-categories = ["command-line-interface", "config", "development-tools", "caching"]
+categories = [
+  "command-line-interface",
+  "config",
+  "development-tools",
+  "caching",
+]
 keywords = ["nix", "flake", "development", "caching", "environment"]
 
 [dependencies]
