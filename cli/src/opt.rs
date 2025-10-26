@@ -10,7 +10,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(version, about)]
 pub struct Envoluntary {
     #[command(subcommand)]
-    pub command: Option<EnvoluntaryCommands>,
+    pub command: EnvoluntaryCommands,
 }
 
 /// Top-level commands for managing configuration and shell integration.
