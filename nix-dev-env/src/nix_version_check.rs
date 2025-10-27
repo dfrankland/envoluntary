@@ -43,41 +43,51 @@ fn check_nix_program_version(nix_executable_path: impl AsRef<OsStr>) -> anyhow::
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Write, os::unix::fs::PermissionsExt};
+    use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
     use super::check_nix_program_version;
 
-    fn create_nix_executable(file_contents: impl AsRef<[u8]>) -> tempfile::NamedTempFile {
-        let mut nix_executable = tempfile::Builder::new()
-            .permissions(fs::Permissions::from_mode(0o777))
-            .tempfile()
-            .unwrap();
-        nix_executable
-            .as_file_mut()
-            .write_all(file_contents.as_ref())
-            .unwrap();
-        nix_executable
+    #[derive(Debug)]
+    struct NixExecutable {
+        // NB: `_dir` needed to prevent tempfile cleanup
+        pub _dir: tempfile::TempDir,
+        pub file_path: PathBuf,
+    }
+
+    impl NixExecutable {
+        fn new(file_contents: &str) -> Self {
+            // NB: Use a temp dir instead of a temp file since executing a file requires the file is
+            // not open for writing / deleting
+            let dir = tempfile::tempdir().unwrap();
+            let file_path = dir.path().join("nix");
+            fs::write(&file_path, format!("#! /bin/sh\n{file_contents}")).unwrap();
+            fs::set_permissions(&file_path, fs::Permissions::from_mode(0o777)).unwrap();
+            Self {
+                _dir: dir,
+                file_path,
+            }
+        }
     }
 
     #[test]
     fn test_error_on_exit_failure() {
-        let nix_executable = create_nix_executable(r#"exit 1;"#);
+        let nix_executable = NixExecutable::new(r#"exit 1;"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path())
+            check_nix_program_version(&nix_executable.file_path)
                 .unwrap_err()
                 .to_string(),
             format!(
                 "`{} --extra-experimental-features nix-command' flakes' --version` failed with error:\nprocess exited unsuccessfully: exit status: 1",
-                nix_executable.path().to_string_lossy()
+                nix_executable.file_path.to_string_lossy()
             )
         );
     }
 
     #[test]
     fn test_error_on_empty_stdout() {
-        let nix_executable = create_nix_executable(r#"echo -n "";"#);
+        let nix_executable = NixExecutable::new(r#"echo -n "";"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path())
+            check_nix_program_version(nix_executable.file_path)
                 .unwrap_err()
                 .to_string(),
             "`nix --version` failed to execute."
@@ -86,9 +96,9 @@ mod tests {
 
     #[test]
     fn test_error_on_missing_semver() {
-        let nix_executable = create_nix_executable(r#"echo "hello";"#);
+        let nix_executable = NixExecutable::new(r#"echo "hello";"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path())
+            check_nix_program_version(nix_executable.file_path)
                 .unwrap_err()
                 .to_string(),
             "SemVer from `nix --version` could not be found."
@@ -97,9 +107,9 @@ mod tests {
 
     #[test]
     fn test_error_on_too_old_version() {
-        let nix_executable = create_nix_executable(r#"echo "nix (Nix) 0.0.0";"#);
+        let nix_executable = NixExecutable::new(r#"echo "nix (Nix) 0.0.0";"#);
         assert_eq!(
-            check_nix_program_version(nix_executable.path())
+            check_nix_program_version(nix_executable.file_path)
                 .unwrap_err()
                 .to_string(),
             "`nix` version too old for flakes."
@@ -108,13 +118,13 @@ mod tests {
 
     #[test]
     fn test_version_matches_minimum() {
-        let nix_executable = create_nix_executable(r#"echo "nix (Nix) 2.10.0";"#);
-        check_nix_program_version(nix_executable.path()).unwrap();
+        let nix_executable = NixExecutable::new(r#"echo "nix (Nix) 2.10.0";"#);
+        check_nix_program_version(nix_executable.file_path).unwrap();
     }
 
     #[test]
     fn test_version_matches_newer() {
-        let nix_executable = create_nix_executable(r#"echo "nix (Nix) 2.30.0";"#);
-        check_nix_program_version(nix_executable.path()).unwrap();
+        let nix_executable = NixExecutable::new(r#"echo "nix (Nix) 2.30.0";"#);
+        check_nix_program_version(nix_executable.file_path).unwrap();
     }
 }
