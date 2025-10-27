@@ -60,48 +60,61 @@ pub(crate) fn nix_program(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, io::Write, os::unix::fs::PermissionsExt};
+    use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
     use super::nix_program;
 
-    fn create_nix_executable(file_contents: impl AsRef<[u8]>) -> tempfile::NamedTempFile {
-        let mut nix_executable = tempfile::Builder::new()
-            .permissions(fs::Permissions::from_mode(0o777))
-            .tempfile()
-            .unwrap();
-        nix_executable
-            .as_file_mut()
-            .write_all(file_contents.as_ref())
-            .unwrap();
-        nix_executable
+    #[derive(Debug)]
+    struct NixExecutable {
+        // NB: `_dir` needed to prevent tempfile cleanup
+        pub _dir: tempfile::TempDir,
+        pub file_path: PathBuf,
+    }
+
+    impl NixExecutable {
+        fn new(file_contents: &str) -> Self {
+            // NB: Use a temp dir instead of a temp file since executing a file requires the file is
+            // not open for writing / deleting
+            let dir = tempfile::tempdir().unwrap();
+            let file_path = dir.path().join("nix");
+            fs::write(&file_path, format!("#! /bin/sh\n{file_contents}")).unwrap();
+            fs::set_permissions(&file_path, fs::Permissions::from_mode(0o777)).unwrap();
+            Self {
+                _dir: dir,
+                file_path,
+            }
+        }
     }
 
     #[test]
     fn test_run_process_success() {
-        let nix_executable = create_nix_executable(r#"exit 0;"#);
+        let nix_executable = NixExecutable::new(
+            r#"#! /bin/bash
+exit 0;"#,
+        );
         let stdout_content =
-            nix_program(nix_executable.path(), Vec::<&str>::with_capacity(0)).unwrap();
+            nix_program(nix_executable.file_path, Vec::<&str>::with_capacity(0)).unwrap();
         assert_eq!(stdout_content, "");
     }
 
     #[test]
     fn test_run_process_failure() {
-        let nix_executable = create_nix_executable(r#"exit 1;"#);
-        let result = nix_program(nix_executable.path(), Vec::<&str>::with_capacity(0));
+        let nix_executable = NixExecutable::new(r#"exit 1;"#);
+        let result = nix_program(&nix_executable.file_path, Vec::<&str>::with_capacity(0));
         assert_eq!(
             result.unwrap_err().to_string(),
             format!(
                 "`{} --extra-experimental-features nix-command' flakes'` failed with error:\nprocess exited unsuccessfully: exit status: 1",
-                nix_executable.path().to_string_lossy()
+                nix_executable.file_path.display()
             )
         );
     }
 
     #[test]
     fn test_run_process_stdout() {
-        let nix_executable = create_nix_executable(r#"echo "echoed";"#);
+        let nix_executable = NixExecutable::new(r#"echo "echoed";"#);
         let stdout_content =
-            nix_program(nix_executable.path(), Vec::<&str>::with_capacity(0)).unwrap();
+            nix_program(nix_executable.file_path, Vec::<&str>::with_capacity(0)).unwrap();
         assert_eq!(stdout_content, "echoed\n");
     }
 }
