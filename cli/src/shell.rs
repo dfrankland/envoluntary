@@ -5,11 +5,10 @@ use std::{collections::BTreeMap, io::Read, os::unix::ffi::OsStrExt, path::PathBu
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use bstr::B;
-use env_hooks::remove_ignored_env_vars;
 use env_hooks::{
     BashSource, EnvVars, EnvVarsState, env_vars_state_from_env_vars, get_env_vars_from_bash,
     get_env_vars_from_current_process, get_env_vars_reset, get_old_env_vars_to_be_updated,
-    merge_delimited_env_var, shells,
+    merge_delimited_env_var, remove_ignored_env_vars, shells,
     state::{self, GetEnvStateVar, MatchRcs},
 };
 use nix_dev_env::{NixProfileCache, check_nix_version};
@@ -266,11 +265,9 @@ fn get_new_env_vars(cache_profile: &NixProfileCache) -> anyhow::Result<EnvVarUpd
     let mut bash_env_vars = BTreeMap::new();
 
     // MacOS ships with an ancient version of Bash. This allows using a newer version.
-    if let Some(path_value) = env::var_os("PATH") {
-        bash_env_vars.insert(
-            String::from("PATH"),
-            path_value.to_string_lossy().to_string(),
-        );
+    let old_path = env::var_os(ENV_VAR_KEY_PATH).map(|p| String::from(p.to_string_lossy()));
+    if let Some(path_value) = old_path.clone() {
+        bash_env_vars.insert(String::from(ENV_VAR_KEY_PATH), path_value);
     }
     // Prints devshell "message of the day" the same way it would in `direnv`
     // https://github.com/numtide/devshell/blob/7c9e793ebe66bcba8292989a68c0419b737a22a0/modules/devshell.nix#L400
@@ -281,6 +278,9 @@ fn get_new_env_vars(cache_profile: &NixProfileCache) -> anyhow::Result<EnvVarUpd
         Some(bash_env_vars),
     )?;
     remove_ignored_env_vars(&mut new_env_vars);
+    if new_env_vars.get(ENV_VAR_KEY_PATH) == old_path.as_ref() {
+        new_env_vars.remove(ENV_VAR_KEY_PATH);
+    }
 
     let old_env_vars_to_be_updated = {
         let mut old_env_vars = get_env_vars_from_current_process();
@@ -288,20 +288,24 @@ fn get_new_env_vars(cache_profile: &NixProfileCache) -> anyhow::Result<EnvVarUpd
         get_old_env_vars_to_be_updated(old_env_vars, &new_env_vars)
     };
 
-    merge_delimited_env_var(
-        ENV_VAR_KEY_PATH,
-        ':',
-        ':',
-        &old_env_vars_to_be_updated,
-        &mut new_env_vars,
-    );
-    merge_delimited_env_var(
-        ENV_VAR_KEY_XDG_DATA_DIRS,
-        ':',
-        ':',
-        &old_env_vars_to_be_updated,
-        &mut new_env_vars,
-    );
+    if new_env_vars.contains_key(ENV_VAR_KEY_PATH) {
+        merge_delimited_env_var(
+            ENV_VAR_KEY_PATH,
+            ':',
+            ':',
+            &old_env_vars_to_be_updated,
+            &mut new_env_vars,
+        );
+    }
+    if new_env_vars.contains_key(ENV_VAR_KEY_XDG_DATA_DIRS) {
+        merge_delimited_env_var(
+            ENV_VAR_KEY_XDG_DATA_DIRS,
+            ':',
+            ':',
+            &old_env_vars_to_be_updated,
+            &mut new_env_vars,
+        );
+    }
 
     Ok(EnvVarUpdates {
         new_env_vars,
