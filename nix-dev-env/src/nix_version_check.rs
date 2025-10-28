@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_error_on_empty_stdout() {
-        let nix_executable = NixExecutable::new(r#"echo -n "";"#);
+        let nix_executable = NixExecutable::new(r#"printf "";"#);
         assert_eq!(
             check_nix_program_version(nix_executable.file_path)
                 .unwrap_err()
