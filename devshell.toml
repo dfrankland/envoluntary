@@ -1,9 +1,12 @@
 [devshell]
-packages = ["alejandra"]
+packages = [
+  "alejandra",
+  "cargo-release",
+]
 
 [[commands]]
 name = "build-all"
-category = "build"
+category = "building"
 help = "Build the project"
 command = """\
   cargo build; \
@@ -12,13 +15,13 @@ command = """\
 
 [[commands]]
 name = "build-cli"
-category = "build"
+category = "building"
 help = "Build the CLI"
 command = "cargo build -p envoluntary"
 
 [[commands]]
 name = "build-docs"
-category = "build"
+category = "building"
 help = "Build the project docs"
 command = "cargo doc --open"
 
