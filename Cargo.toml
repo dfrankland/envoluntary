@@ -4,6 +4,7 @@ members = ["cli", "env-hooks", "nix-dev-env"]
 
 [workspace.dependencies]
 anyhow = "1.0.100"
+base64 = "0.22.1"
 bstr = "1.12.0"
 clap = { version = "4.5.49", features = ["derive"] }
 duct = "1.1.0"

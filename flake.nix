@@ -48,15 +48,15 @@
             # NB: run tests via cargo-nextest
             doCheck = false;
           };
-        fileSetForCrate = crate:
+        fileSetForCrate =
           pkgs.lib.fileset.toSource {
             root = ./.;
             fileset = pkgs.lib.fileset.unions [
               ./Cargo.toml
               ./Cargo.lock
+              (craneLib.fileset.commonCargoSources ./cli)
               (craneLib.fileset.commonCargoSources ./env-hooks)
               (craneLib.fileset.commonCargoSources ./nix-dev-env)
-              (craneLib.fileset.commonCargoSources crate)
             ];
           };
         envoluntary = craneLib.buildPackage (
@@ -64,7 +64,15 @@
           // {
             pname = "envoluntary";
             cargoExtraArgs = "-p envoluntary";
-            src = fileSetForCrate ./cli;
+            src = fileSetForCrate;
+          }
+        );
+        envHooksExampleDirenv = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "env-hooks-example-direnv";
+            cargoExtraArgs = "-p env-hooks --example direnv";
+            src = fileSetForCrate;
           }
         );
       in {
@@ -77,7 +85,7 @@
         };
 
         checks = {
-          inherit envoluntary;
+          inherit envoluntary envHooksExampleDirenv;
 
           clippy = craneLib.cargoClippy (
             commonArgs
@@ -116,14 +124,26 @@
           );
         };
 
-        packages.default = envoluntary;
+        packages = {
+          default = envoluntary;
+          inherit envHooksExampleDirenv;
+        };
 
-        apps.default = {
-          type = "app";
-          meta.description = "Automatic Nix development environments for your shell";
-          program = pkgs.writeShellScriptBin "envoluntary" ''
-            ${envoluntary}/bin/envoluntary "$@"
-          '';
+        apps = {
+          default = {
+            type = "app";
+            meta.description = "Automatic Nix development environments for your shell";
+            program = pkgs.writeShellScriptBin "envoluntary" ''
+              ${envoluntary}/bin/envoluntary "$@"
+            '';
+          };
+          envHooksExampleDirenv = {
+            type = "app";
+            meta.description = "Example of using env-hooks to implement a direnv-like utility";
+            program = pkgs.writeShellScriptBin "direnv" ''
+              ${envHooksExampleDirenv}/bin/direnv "$@"
+            '';
+          };
         };
 
         devShells.default = let

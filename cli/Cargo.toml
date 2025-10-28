@@ -12,7 +12,7 @@ keywords = ["nix", "shell", "environment", "hooks", "development"]
 
 [dependencies]
 anyhow.workspace = true
-base64 = "0.22.1"
+base64.workspace = true
 bstr.workspace = true
 clap.workspace = true
 config = "0.15.18"

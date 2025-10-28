@@ -13,6 +13,27 @@ exporting and unsetting across different shell types (bash, zsh, fish).
   programmatic access
 - **Environment hooks**: Integration hooks for seamless environment loading
 
+## Example
+
+For a practical example of using `env-hooks`, see the [direnv example](https://github.com/dfrankland/envoluntary/tree/main/env-hooks/examples/direnv).
+It's a simplified implementation of `direnv` that demonstrates the core
+functionality of this library:
+
+- Hooks into bash, zsh, and fish shells
+- Reads `.envrc` files by walking up the directory hierarchy
+- Exports environment variables from those files
+
+To run the example:
+
+```bash
+cargo run --example direnv -- --help
+cargo run --example direnv -- hook bash
+cargo run --example direnv -- export bash
+```
+
+This is a great starting point for understanding how to integrate `env-hooks`
+into your own shell-based utilities.
+
 ## Part of envoluntary
 
 This library is a core component of [envoluntary](https://github.com/dfrankland/envoluntary),
