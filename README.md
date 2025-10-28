@@ -200,7 +200,7 @@ configuration entirely through pattern matching.
 
 **Similarity**: Same similarities as nix-direnv, but flake_env is also portable.
 
-**Difference**: Same differenes as nix-direnv.
+**Difference**: Same differences as nix-direnv.
 
 **Attribution**: Core concepts and some implementation patterns were adapted from
 flake_env.
