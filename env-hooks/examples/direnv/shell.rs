@@ -8,9 +8,9 @@ use std::{
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use bstr::B;
 use env_hooks::{
-    BashSource, EnvVars, EnvVarsState, env_vars_state_from_env_vars, get_env_vars_from_bash,
-    get_env_vars_from_current_process, get_env_vars_reset, get_old_env_vars_to_be_updated,
-    merge_delimited_env_var, remove_ignored_env_vars, shells,
+    BashSource, EnvVars, EnvVarsState, get_env_vars_from_bash, get_env_vars_from_current_process,
+    get_env_vars_reset, get_old_env_vars_to_be_updated, merge_delimited_env_var,
+    remove_ignored_env_vars, shells,
     state::{self, GetEnvStateVar, MatchRcs},
 };
 use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
@@ -199,7 +199,7 @@ fn get_export_env_vars_state(envrc: PathBuf) -> anyhow::Result<EnvVarsState> {
         String::from(DIRENV_ENV_STATE_VAR_KEY),
         direnv_diff.encode()?,
     );
-    Ok(env_vars_state_from_env_vars(new_env_vars))
+    Ok(EnvVarsState::from(new_env_vars))
 }
 
 struct EnvVarUpdates {
@@ -224,7 +224,7 @@ fn get_new_env_vars(envrc: PathBuf) -> anyhow::Result<EnvVarUpdates> {
     new_env_vars.insert(String::from(DIRENV_FILE_VAR_KEY), direnv_file);
     remove_ignored_env_vars(&mut new_env_vars);
     if new_env_vars.get(ENV_VAR_KEY_PATH) == old_path.as_ref() {
-        new_env_vars.remove(ENV_VAR_KEY_PATH);
+        new_env_vars.shift_remove(ENV_VAR_KEY_PATH);
     }
 
     let old_env_vars_to_be_updated = {

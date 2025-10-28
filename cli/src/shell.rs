@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 use std::env;
 use std::path::Path;
-use std::{collections::BTreeMap, io::Read, os::unix::ffi::OsStrExt, path::PathBuf};
+use std::{io::Read, os::unix::ffi::OsStrExt, path::PathBuf};
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use bstr::B;
 use env_hooks::{
-    BashSource, EnvVars, EnvVarsState, env_vars_state_from_env_vars, get_env_vars_from_bash,
-    get_env_vars_from_current_process, get_env_vars_reset, get_old_env_vars_to_be_updated,
-    merge_delimited_env_var, remove_ignored_env_vars, shells,
+    BashSource, EnvVars, EnvVarsState, get_env_vars_from_bash, get_env_vars_from_current_process,
+    get_env_vars_reset, get_old_env_vars_to_be_updated, merge_delimited_env_var,
+    remove_ignored_env_vars, shells,
     state::{self, GetEnvStateVar, MatchRcs},
 };
 use nix_dev_env::{NixProfileCache, check_nix_version};
@@ -253,7 +253,7 @@ fn get_export_env_vars_state(
         String::from(ENVOLUNTARY_ENV_STATE_VAR_KEY),
         env_state.encode()?,
     );
-    Ok(env_vars_state_from_env_vars(new_env_vars))
+    Ok(EnvVarsState::from(new_env_vars))
 }
 
 struct EnvVarUpdates {
@@ -262,7 +262,7 @@ struct EnvVarUpdates {
 }
 
 fn get_new_env_vars(cache_profile: &NixProfileCache) -> anyhow::Result<EnvVarUpdates> {
-    let mut bash_env_vars = BTreeMap::new();
+    let mut bash_env_vars = EnvVars::new();
 
     // MacOS ships with an ancient version of Bash. This allows using a newer version.
     let old_path = env::var_os(ENV_VAR_KEY_PATH).map(|p| String::from(p.to_string_lossy()));
@@ -279,7 +279,7 @@ fn get_new_env_vars(cache_profile: &NixProfileCache) -> anyhow::Result<EnvVarUpd
     )?;
     remove_ignored_env_vars(&mut new_env_vars);
     if new_env_vars.get(ENV_VAR_KEY_PATH) == old_path.as_ref() {
-        new_env_vars.remove(ENV_VAR_KEY_PATH);
+        new_env_vars.shift_remove(ENV_VAR_KEY_PATH);
     }
 
     let old_env_vars_to_be_updated = {

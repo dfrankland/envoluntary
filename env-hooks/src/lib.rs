@@ -2,46 +2,125 @@ pub mod shells;
 pub mod state;
 
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::HashSet,
     env, fs, num,
+    ops::{Deref, DerefMut},
     path::PathBuf,
     process::ExitStatus,
 };
 
 use bstr::{B, BString, ByteSlice};
 use duct::cmd;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet, map::IntoIter};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use shell_quote::Bash;
 
-pub type EnvVars = BTreeMap<String, String>;
-pub type EnvVarsState = BTreeMap<String, Option<String>>;
+type EnvVarsInner = IndexMap<String, String>;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EnvVars(EnvVarsInner);
+
+impl EnvVars {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Deref for EnvVars {
+    type Target = EnvVarsInner;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for EnvVars {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for EnvVars {
+    type Item = (String, String);
+    type IntoIter = EnvVarIntoIter<String, String>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        EnvVarIntoIter(self.0.into_iter())
+    }
+}
+
+impl From<EnvVars> for EnvVarsState {
+    fn from(value: EnvVars) -> Self {
+        EnvVarsState(value.0.into_iter().map(|(k, v)| (k, Some(v))).collect())
+    }
+}
+
+type EnvVarsStateInner = IndexMap<String, Option<String>>;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EnvVarsState(EnvVarsStateInner);
+
+impl EnvVarsState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Deref for EnvVarsState {
+    type Target = EnvVarsStateInner;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for EnvVarsState {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for EnvVarsState {
+    type Item = (String, Option<String>);
+    type IntoIter = EnvVarIntoIter<String, Option<String>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        EnvVarIntoIter(self.0.into_iter())
+    }
+}
+
+type EnvVarInner<K, V> = IntoIter<K, V>;
+
+pub struct EnvVarIntoIter<K, V>(EnvVarInner<K, V>);
+
+impl<K, V> Deref for EnvVarIntoIter<K, V> {
+    type Target = EnvVarInner<K, V>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<K, V> DerefMut for EnvVarIntoIter<K, V> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<K, V> Iterator for EnvVarIntoIter<K, V> {
+    type Item = (K, V);
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
 
 pub fn get_old_env_vars_to_be_updated(old_env_vars: EnvVars, new_env_vars: &EnvVars) -> EnvVars {
     old_env_vars
         .into_iter()
-        .fold(BTreeMap::new(), |mut acc, (key, value)| {
+        .fold(EnvVars::new(), |mut acc, (key, value)| {
             if new_env_vars.contains_key(&key) && new_env_vars.get(&key) != Some(&value) {
                 acc.insert(key, value);
             }
             acc
         })
-}
-
-// TODO: Create new type patern for `EnvVars` and `EnvVarsState`?
-// impl From<EnvVars> for EnvVarsState {
-//   fn from(value: EnvVars) -> Self {
-//     value
-//       .into_iter()
-//       .map(|(key, value)| (key, Some(value)))
-//       .collect()
-//   }
-// }
-pub fn env_vars_state_from_env_vars(env_vars: EnvVars) -> EnvVarsState {
-    env_vars
-        .into_iter()
-        .map(|(key, value)| (key, Some(value)))
-        .collect()
 }
 
 pub fn get_env_vars_reset(
@@ -52,7 +131,7 @@ pub fn get_env_vars_reset(
     let mut env_vars_state = new_env_vars
         .into_iter()
         .fold(EnvVarsState::new(), |mut acc, key| {
-            let value = old_env_vars_that_were_updated.remove(&key);
+            let value = old_env_vars_that_were_updated.shift_remove(&key);
             acc.insert(key, value);
             acc
         });
@@ -61,7 +140,7 @@ pub fn get_env_vars_reset(
 }
 
 pub fn get_env_vars_from_current_process() -> EnvVars {
-    env::vars().collect::<EnvVars>()
+    EnvVars(env::vars().collect::<EnvVarsInner>())
 }
 
 pub enum BashSource {
@@ -128,11 +207,13 @@ pub fn get_env_vars_from_bash(
 
     let bash_env_vars_string = fs::read_to_string(bash_env_vars_file.path())?;
 
-    let bash_env_vars = bash_env_vars_string
-        .split('\0')
-        .filter_map(|env_var| env_var.split_once('='))
-        .map(|(key, value)| (String::from(key), String::from(value)))
-        .collect::<EnvVars>();
+    let bash_env_vars = EnvVars(
+        bash_env_vars_string
+            .split('\0')
+            .filter_map(|env_var| env_var.split_once('='))
+            .map(|(key, value)| (String::from(key), String::from(value)))
+            .collect::<EnvVarsInner>(),
+    );
 
     Ok(bash_env_vars)
 }
@@ -141,8 +222,8 @@ pub fn merge_delimited_env_var(
     env_var: &str,
     split_delimiter: char,
     join_delimiter: char,
-    old_env_vars: &BTreeMap<String, String>,
-    new_env_vars: &mut BTreeMap<String, String>,
+    old_env_vars: &EnvVars,
+    new_env_vars: &mut EnvVars,
 ) {
     if let (Some(old_value), Some(new_value)) =
         (old_env_vars.get(env_var), new_env_vars.get_mut(env_var))
@@ -200,7 +281,7 @@ pub fn remove_ignored_env_vars(env_vars: &mut EnvVars) {
     let env_var_keys = env_vars.keys().cloned().collect::<Vec<_>>();
     env_var_keys.into_iter().for_each(|env_var_key| {
         if ignored_env_var_key(&env_var_key) {
-            env_vars.remove(&env_var_key);
+            env_vars.shift_remove(&env_var_key);
         }
     });
 }
