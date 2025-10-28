@@ -48,17 +48,16 @@
             # NB: run tests via cargo-nextest
             doCheck = false;
           };
-        fileSetForCrate =
-          pkgs.lib.fileset.toSource {
-            root = ./.;
-            fileset = pkgs.lib.fileset.unions [
-              ./Cargo.toml
-              ./Cargo.lock
-              (craneLib.fileset.commonCargoSources ./cli)
-              (craneLib.fileset.commonCargoSources ./env-hooks)
-              (craneLib.fileset.commonCargoSources ./nix-dev-env)
-            ];
-          };
+        fileSetForCrate = pkgs.lib.fileset.toSource {
+          root = ./.;
+          fileset = pkgs.lib.fileset.unions [
+            ./Cargo.toml
+            ./Cargo.lock
+            (craneLib.fileset.commonCargoSources ./cli)
+            (craneLib.fileset.commonCargoSources ./env-hooks)
+            (craneLib.fileset.commonCargoSources ./nix-dev-env)
+          ];
+        };
         envoluntary = craneLib.buildPackage (
           individualCrateArgs
           // {
