@@ -32,7 +32,9 @@
         craneLib = (inputs.crane.mkLib pkgs).overrideToolchain (
           p:
           # NB: use nightly for https://github.com/rust-lang/rustfmt/issues/6241
-            p.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)
+            p.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
+              extensions = pkgs.lib.optionals pkgs.stdenv.isLinux ["llvm-tools-preview"];
+            })
         );
         src = craneLib.cleanCargoSource ./.;
         commonArgs = {
@@ -119,6 +121,9 @@
               partitions = 1;
               partitionType = "count";
               cargoNextestPartitionsExtraArgs = "--no-tests=pass";
+              # Currently only supported on Linux
+              # https://github.com/NixOS/nixpkgs/blob/6a08e6bb4e46ff7fcbb53d409b253f6bad8a28ce/pkgs/by-name/ca/cargo-llvm-cov/package.nix#L94-L95
+              withLlvmCov = pkgs.stdenv.isLinux;
             }
           );
         };

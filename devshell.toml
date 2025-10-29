@@ -26,7 +26,13 @@ command = "cargo doc --open"
 name = "test-all"
 category = "testing"
 help = "Run the test suite"
-command = "cargo nextest run"
+command = """\
+  if [[ "$(uname -s)" == "Linux" ]]; then \
+    cargo llvm-cov nextest; \
+  else \
+    cargo nextest run; \
+  fi \
+"""
 
 [[commands]]
 name = "check-all"
