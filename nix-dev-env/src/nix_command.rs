@@ -60,7 +60,7 @@ pub(crate) fn nix_program(
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
+    use std::{env, fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
     use super::nix_program;
 
@@ -77,7 +77,8 @@ mod tests {
             // not open for writing / deleting
             let dir = tempfile::tempdir().unwrap();
             let file_path = dir.path().join("nix");
-            fs::write(&file_path, format!("#! /bin/sh\n{file_contents}")).unwrap();
+            let bash_path = env::var("NIX_BIN_BASH").unwrap_or_else(|_| String::from("/bin/bash"));
+            fs::write(&file_path, format!("#! {bash_path}\n{file_contents}")).unwrap();
             fs::set_permissions(&file_path, fs::Permissions::from_mode(0o777)).unwrap();
             Self {
                 _dir: dir,

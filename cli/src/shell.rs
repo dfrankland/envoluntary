@@ -11,13 +11,13 @@ use env_hooks::{
     remove_ignored_env_vars, shells,
     state::{self, GetEnvStateVar, MatchRcs},
 };
-use nix_dev_env::{NixProfileCache, check_nix_version};
+use nix_dev_env::{EvaluationMode, NixProfileCache, check_nix_version};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use shell_quote::{Bash, Fish, Zsh};
 
-use crate::config::{EnvoluntaryConfig, get_cache_dir, get_config_path};
+use crate::config::{Config, EnvoluntaryConfig, get_cache_dir, get_config_path};
 use crate::constants::CLI_NAME;
 use crate::opt::{
     EnvoluntaryShell, EnvoluntaryShellExportArgs, EnvoluntaryShellPrintCachePathArgs,
@@ -79,16 +79,22 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
     let current_dir_state = state::ShellPromptState::get_current_dir(args.current_dir)?;
 
     let match_rcs = current_dir_state.match_rcs(|current_dir| {
-        let flake_references = if let Some(ref flake_references) = args.flake_references {
-            flake_references.clone()
+        let config_values = if let Some(ref flake_references) = args.flake_references {
+            flake_references
+                .iter()
+                .map(|flake_reference| Config {
+                    flake_reference: String::from(flake_reference),
+                    impure: args.impure,
+                })
+                .collect()
         } else {
             envoluntary_config
                 .matching_entries(current_dir)
                 .into_iter()
-                .map(|entry| entry.flake_reference)
+                .map(|entry| entry.config)
                 .collect()
         };
-        Ok(flake_references)
+        Ok(config_values)
     })?;
 
     match match_rcs {
@@ -110,14 +116,15 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
                     no_env_state_var_state.set_new_env_state_var(|rcs| {
                         let env_vars_state = rcs.into_iter().try_fold(
                             EnvVarsState::new(),
-                            |mut acc, flake_reference| -> anyhow::Result<EnvVarsState> {
+                            |mut acc, config| -> anyhow::Result<EnvVarsState> {
                                 let cache_profile = get_cache_profile(
                                     &cache_dir,
-                                    &flake_reference,
+                                    &config.flake_reference,
                                     args.force_update,
+                                    args.impure.or(config.impure),
                                 )?;
                                 acc.extend(get_export_env_vars_state(
-                                    flake_reference,
+                                    config.flake_reference,
                                     &cache_profile,
                                 )?);
                                 Ok(acc)
@@ -135,7 +142,12 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
                             let env_state =
                                 EnvoluntaryEnvState::decode(env_state_var_value.as_bytes())?;
 
-                            if rcs == env_state.flake_references {
+                            if rcs
+                                .iter()
+                                .map(|config| String::from(&config.flake_reference))
+                                .collect::<Vec<_>>()
+                                == env_state.flake_references
+                            {
                                 return Ok((rcs, env_state.flake_references));
                             }
 
@@ -144,20 +156,26 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
                             Ok((rcs, env_state.flake_references))
                         },
                         |(rcs, env_state_flake_references)| {
-                            if rcs == env_state_flake_references {
+                            if rcs
+                                .iter()
+                                .map(|config| String::from(&config.flake_reference))
+                                .collect::<Vec<_>>()
+                                == env_state_flake_references
+                            {
                                 return Ok(());
                             }
 
                             let env_vars_state = rcs.into_iter().try_fold(
                                 EnvVarsState::new(),
-                                |mut acc, flake_reference| -> anyhow::Result<EnvVarsState> {
+                                |mut acc, config| -> anyhow::Result<EnvVarsState> {
                                     let cache_profile = get_cache_profile(
                                         &cache_dir,
-                                        &flake_reference,
+                                        &config.flake_reference,
                                         args.force_update,
+                                        args.impure.or(config.impure),
                                     )?;
                                     acc.extend(get_export_env_vars_state(
-                                        flake_reference,
+                                        config.flake_reference,
                                         &cache_profile,
                                     )?);
                                     Ok(acc)
@@ -190,9 +208,18 @@ fn get_cache_profile(
     cache_dir: &Path,
     flake_reference: &str,
     force_update: bool,
+    impure: Option<bool>,
 ) -> anyhow::Result<NixProfileCache> {
     let cach_sub_dir = get_cache_sub_dir(cache_dir, flake_reference);
-    let cache_profile = NixProfileCache::new(cach_sub_dir, flake_reference)?;
+    let cache_profile = NixProfileCache::new(
+        cach_sub_dir,
+        flake_reference,
+        if impure == Some(true) {
+            EvaluationMode::Impure
+        } else {
+            EvaluationMode::Pure
+        },
+    )?;
 
     if force_update || cache_profile.needs_update()? {
         cache_profile.update()?;

@@ -54,7 +54,7 @@ graph TD
 
    [[entries]]
    pattern = ".*/projects/rust-.*"
-   flake_reference = "github:the-nix-way/dev-templates/f1442ed?dir=rust"
+   flake_reference = "github:NixOS/templates/30a6f18?dir=rust"
    ```
 
 4. **Navigate** to a matching directory and your environment loads automatically!

@@ -35,10 +35,14 @@ pub fn add_entry(
     provided_config_path: Option<&Path>,
     pattern: String,
     flake_reference: String,
+    impure: Option<bool>,
 ) -> anyhow::Result<()> {
     let entry = ConfigEntry {
         pattern: Regex::new(&pattern)?,
-        flake_reference,
+        config: Config {
+            flake_reference,
+            impure,
+        },
     };
     let config_path = get_config_path(provided_config_path)?;
     let mut envoluntary_config = EnvoluntaryConfig::load(&config_path)?;
@@ -109,7 +113,14 @@ impl EnvoluntaryConfig {
 pub struct ConfigEntry {
     #[serde(with = "serde_regex")]
     pub pattern: Regex,
+    #[serde(flatten)]
+    pub config: Config,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
     pub flake_reference: String,
+    pub impure: Option<bool>,
 }
 
 pub fn get_config_path(provided_config_path: Option<&Path>) -> anyhow::Result<PathBuf> {

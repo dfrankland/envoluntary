@@ -96,6 +96,13 @@ pub struct EnvoluntaryConfigAddEntryArgs {
     /// See: <https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references>
     pub flake_reference: String,
 
+    /// Whether to evaluate the flake in impure mode.
+    ///
+    /// If set to `true`, Nix will evaluate the flake with `--impure`, allowing access to environment variables
+    /// and other non-deterministic inputs. If not provided, uses the default evaluation mode.
+    #[arg(long)]
+    pub impure: Option<bool>,
+
     /// Path to the configuration file (overrides default location).
     ///
     /// If not provided, uses the default configuration path.
@@ -181,6 +188,12 @@ pub struct EnvoluntaryShellExportArgs {
     /// See: <https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references>
     #[arg(long)]
     pub flake_references: Option<Vec<String>>,
+
+    /// Override whether to evaluate the flake in impure mode.
+    ///
+    /// If set to `true`, Nix will evaluate the flake with `--impure`, allowing access to environment variables
+    /// and other non-deterministic inputs. If not provided, uses the default evaluation mode.
+    pub impure: Option<bool>,
 
     /// Force update of cached Nix profiles.
     ///

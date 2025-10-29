@@ -17,13 +17,18 @@ pub struct NixProfileCache {
     cache_dir: PathBuf,
     flake_inputs_dir: PathBuf,
     flake_reference: FlakeReference,
+    evaluation_mode: EvaluationMode,
     files_to_watch: Vec<PathBuf>,
     profile_symlink: PathBuf,
     profile_rc_file: PathBuf,
 }
 
 impl NixProfileCache {
-    pub fn new(cache_dir: PathBuf, flake_reference: &str) -> anyhow::Result<Self> {
+    pub fn new(
+        cache_dir: PathBuf,
+        flake_reference: &str,
+        evaluation_mode: EvaluationMode,
+    ) -> anyhow::Result<Self> {
         let flake_inputs_dir = cache_dir.join("flake-inputs");
 
         let flake_reference = FlakeReference::parse(flake_reference)?;
@@ -46,6 +51,7 @@ impl NixProfileCache {
             cache_dir,
             flake_inputs_dir,
             flake_reference,
+            evaluation_mode,
             files_to_watch,
             profile_symlink,
             profile_rc_file,
@@ -78,6 +84,7 @@ impl NixProfileCache {
 
         let stdout_content = nix_command::nix([
             OsStr::new("print-dev-env"),
+            OsStr::new(self.impure_arg()),
             OsStr::new("--no-write-lock-file"),
             OsStr::new("--profile"),
             tmp_profile.as_os_str(),
@@ -86,14 +93,14 @@ impl NixProfileCache {
 
         fs::File::create(&self.profile_rc_file)?.write_all(stdout_content.as_bytes())?;
 
-        add_gcroot(&tmp_profile, &self.profile_symlink)?;
+        self.add_gcroot(&tmp_profile, &self.profile_symlink)?;
         fs::remove_file(&tmp_profile)?;
 
         if self.flake_reference.flake_dir.is_some() {
-            for input in get_flake_input_paths(&self.flake_reference.flake_reference_string)? {
+            for input in self.get_flake_input_paths()? {
                 let store_path = PathBuf::from("/nix/store").join(&input);
                 let symlink_path = self.flake_inputs_dir.join(&input);
-                add_gcroot(&store_path, &symlink_path)?;
+                self.add_gcroot(&store_path, &symlink_path)?;
             }
         }
 
@@ -103,6 +110,43 @@ impl NixProfileCache {
     pub fn profile_rc(&self) -> &Path {
         &self.profile_rc_file
     }
+
+    fn impure_arg(&self) -> &str {
+        match self.evaluation_mode {
+            EvaluationMode::Impure => "--impure",
+            EvaluationMode::Pure => "",
+        }
+    }
+
+    fn add_gcroot(&self, store_path: &Path, symlink: &Path) -> anyhow::Result<()> {
+        nix_command::nix([
+            OsStr::new("build"),
+            OsStr::new(&self.impure_arg()),
+            OsStr::new("--out-link"),
+            symlink.as_os_str(),
+            store_path.as_os_str(),
+        ])?;
+        Ok(())
+    }
+
+    fn get_flake_input_paths(&self) -> anyhow::Result<Vec<PathBuf>> {
+        let stdout_content = nix_command::nix([
+            "flake",
+            "archive",
+            self.impure_arg(),
+            "--json",
+            "--no-write-lock-file",
+            &self.flake_reference.flake_reference_string,
+        ])?;
+        let json = serde_json::from_str::<Value>(&stdout_content)?;
+        Ok(get_paths_from_doc(&json))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum EvaluationMode {
+    Impure,
+    Pure,
 }
 
 #[derive(Debug, Clone)]
@@ -188,28 +232,6 @@ fn clean_old_gcroots(cache_dir: &Path, flake_inputs_dir: &Path) -> anyhow::Resul
     }
     fs::create_dir_all(flake_inputs_dir)?;
     Ok(())
-}
-
-fn add_gcroot(store_path: &Path, symlink: &Path) -> anyhow::Result<()> {
-    nix_command::nix([
-        OsStr::new("build"),
-        OsStr::new("--out-link"),
-        symlink.as_os_str(),
-        store_path.as_os_str(),
-    ])?;
-    Ok(())
-}
-
-fn get_flake_input_paths(flake_reference: &str) -> anyhow::Result<Vec<PathBuf>> {
-    let stdout_content = nix_command::nix([
-        "flake",
-        "archive",
-        "--json",
-        "--no-write-lock-file",
-        flake_reference,
-    ])?;
-    let json = serde_json::from_str::<Value>(&stdout_content)?;
-    Ok(get_paths_from_doc(&json))
 }
 
 fn get_paths_from_doc(doc: &Value) -> Vec<PathBuf> {
