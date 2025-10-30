@@ -61,7 +61,7 @@ impl NixProfileCache {
     pub fn needs_update(&self) -> anyhow::Result<bool> {
         let mut need_update = true;
 
-        if self.profile_rc_file.is_file() && self.profile_symlink.is_file() {
+        if self.profile_rc_file.is_file() && self.profile_symlink.is_symlink() {
             let profile_rc_mtime = fs::metadata(&self.profile_rc_file)?.modified()?;
 
             need_update = self.files_to_watch.iter().any(|file| {
