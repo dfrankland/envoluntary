@@ -100,17 +100,18 @@ exit 0
         .unwrap();
     assert_eq!(exit_status.code().unwrap(), 0);
 
-    let cache_entries = fs::read_dir(cache_dir.path())
+    let mut cache_entries = fs::read_dir(cache_dir.path())
         .unwrap()
         .map(|entry| entry.map(|e| e.path()))
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
+    cache_entries.sort();
     assert_eq!(
         cache_entries,
         [
+            flake_inputs_path.clone(),
             profile_symlink.clone(),
             profile_rc.clone(),
-            flake_inputs_path.clone(),
         ]
     );
     assert_eq!(
