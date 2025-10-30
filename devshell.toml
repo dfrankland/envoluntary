@@ -1,5 +1,5 @@
 [devshell]
-packages = ["alejandra", "cargo-release"]
+packages = ["alejandra", "cargo-release", "miniserve"]
 
 [[commands]]
 name = "build-all"
@@ -28,7 +28,8 @@ category = "testing"
 help = "Run the test suite"
 command = """\
   if [[ "$(uname -s)" == "Linux" ]]; then \
-    cargo llvm-cov nextest; \
+    cargo llvm-cov nextest --html; \
+    echo "inspect coverage report with 'miniserve ./target/llvm-cov/html'"; \
   else \
     cargo nextest run; \
   fi \
