@@ -34,7 +34,7 @@
           # NB: use nightly for https://github.com/rust-lang/rustfmt/issues/6241
             p.rust-bin.selectLatestNightlyWith (toolchain:
               toolchain.default.override {
-                extensions = pkgs.lib.optionals pkgs.stdenv.isLinux ["llvm-tools-preview"];
+                extensions = pkgs.lib.optionals pkgs.stdenv.isLinux ["llvm-tools-preview" "rust-src"];
               })
         );
         src = craneLib.cleanCargoSource ./.;
@@ -125,7 +125,7 @@
               # Currently only supported on Linux
               # https://github.com/NixOS/nixpkgs/blob/6a08e6bb4e46ff7fcbb53d409b253f6bad8a28ce/pkgs/by-name/ca/cargo-llvm-cov/package.nix#L94-L95
               withLlvmCov = pkgs.stdenv.isLinux;
-              nativeBuildInputs = [pkgs.bash];
+              nativeBuildInputs = [pkgs.bash pkgs.uutils-coreutils-noprefix];
               # Some tests use scripts which require an absolute path to bash.
               NIX_BIN_BASH = "${pkgs.bash}/bin/bash";
             }
