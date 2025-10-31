@@ -210,11 +210,11 @@ struct EnvVarUpdates {
 fn get_new_env_vars(envrc: PathBuf) -> anyhow::Result<EnvVarUpdates> {
     let mut bash_env_vars = EnvVars::new();
 
-    // MacOS ships with an ancient version of Bash. This allows using a newer version.
     let old_path = env::var_os(ENV_VAR_KEY_PATH).map(|p| String::from(p.to_string_lossy()));
     if let Some(path_value) = old_path.clone() {
         bash_env_vars.insert(String::from(ENV_VAR_KEY_PATH), path_value);
     }
+
     // Prints devshell "message of the day" the same way it would in `direnv`
     // https://github.com/numtide/devshell/blob/7c9e793ebe66bcba8292989a68c0419b737a22a0/modules/devshell.nix#L400
     bash_env_vars.insert(String::from("DIRENV_IN_ENVRC"), String::from("1"));
