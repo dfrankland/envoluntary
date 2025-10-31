@@ -18,7 +18,7 @@ use shell_quote::Bash;
 
 type EnvVarsInner = IndexMap<String, String>;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EnvVars(EnvVarsInner);
 
 impl EnvVars {
@@ -49,6 +49,12 @@ impl IntoIterator for EnvVars {
     }
 }
 
+impl FromIterator<(String, String)> for EnvVars {
+    fn from_iter<I: IntoIterator<Item = (String, String)>>(iter: I) -> Self {
+        EnvVars(EnvVarsInner::from_iter(iter))
+    }
+}
+
 impl From<EnvVars> for EnvVarsState {
     fn from(value: EnvVars) -> Self {
         EnvVarsState(value.0.into_iter().map(|(k, v)| (k, Some(v))).collect())
@@ -57,7 +63,7 @@ impl From<EnvVars> for EnvVarsState {
 
 type EnvVarsStateInner = IndexMap<String, Option<String>>;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EnvVarsState(EnvVarsStateInner);
 
 impl EnvVarsState {
@@ -85,6 +91,12 @@ impl IntoIterator for EnvVarsState {
 
     fn into_iter(self) -> Self::IntoIter {
         EnvVarIntoIter(self.0.into_iter())
+    }
+}
+
+impl FromIterator<(String, Option<String>)> for EnvVarsState {
+    fn from_iter<I: IntoIterator<Item = (String, Option<String>)>>(iter: I) -> Self {
+        EnvVarsState(EnvVarsStateInner::from_iter(iter))
     }
 }
 
