@@ -28,3 +28,8 @@ serde_regex = "1.1.0"
 sha1.workspace = true
 shell-quote.workspace = true
 toml = "0.9.8"
+
+[dev-dependencies]
+assert_cmd = "2.1.1"
+predicates = "3.1.2"
+tempfile.workspace = true
