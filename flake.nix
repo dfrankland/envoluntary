@@ -15,10 +15,7 @@
   outputs = inputs:
     inputs.flake-parts.lib.mkFlake {inherit inputs;} {
       imports = [
-        # To import a flake module
-        # 1. Add foo to inputs
-        # 2. Add foo as a parameter to the outputs function
-        # 3. Add here: foo.flakeModule
+        inputs.flake-parts.flakeModules.easyOverlay
       ];
       systems = ["x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin"];
       perSystem = {
@@ -132,8 +129,13 @@
           );
         };
 
+        overlayAttrs = {
+          inherit envoluntary;
+        };
+
         packages = {
           default = envoluntary;
+          inherit envoluntary;
           inherit envHooksExampleDirenv;
         };
 

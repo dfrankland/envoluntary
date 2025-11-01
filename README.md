@@ -35,6 +35,12 @@ graph TD
    cargo install envoluntary
    ```
 
+   Or use via Nix shell
+
+   ```bash
+   nix shell github:dfrankland/envoluntary -c envoluntary --help
+   ```
+
 2. **Add the shell hook** to your `.bashrc`, `.zshrc`, or `config.fish`:
 
    ```bash
@@ -43,6 +49,16 @@ graph TD
 
    # Fish
    envoluntary shell hook fish | source
+   ```
+
+   Or use via Nix shell
+
+   ```bash
+      # Bash/Zsh
+   eval "$(nix shell github:dfrankland/envoluntary -c envoluntary shell hook bash)"  # or zsh
+
+   # Fish
+   nix shell github:dfrankland/envoluntary -c envoluntary shell hook fish | source
    ```
 
 3. **Configure your environments** in `~/.config/envoluntary/config.toml`:
@@ -58,6 +74,71 @@ graph TD
    ```
 
 4. **Navigate** to a matching directory and your environment loads automatically!
+
+## Installing with Nix
+
+The `envoluntary` flake exports a Nix overlay, making it easy to integrate into
+your own Nix flake.
+
+### About the Flake
+
+The `flake.nix` in this repository is a [flake-parts](https://flake.parts/)
+module that:
+
+- Exports the `envoluntary` package as its `defaultPackage`
+- Provides an overlay that makes `envoluntary` available in your own flakes
+
+### Using the Overlay
+
+To use `envoluntary` in your own `flake.nix`, follow these steps:
+
+#### 1. Add the input
+
+Add `envoluntary` to your flake inputs:
+
+```nix
+{
+  description = "Your flake description";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    envoluntary = {
+      url = "github:dfrankland/envoluntary";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { self, nixpkgs, envoluntary }:
+    # ... rest of your flake
+}
+```
+
+#### 2. Apply the overlay
+
+Apply the overlay to your `pkgs`:
+
+```nix
+outputs = { self, nixpkgs, envoluntary }:
+  let
+    system = "x86_64-linux"; # or your system
+    pkgs = import nixpkgs {
+      inherit system;
+      overlays = [ envoluntary.overlays.default ];
+    };
+  in {
+    # Now pkgs.envoluntary is available
+  }
+```
+
+#### 3. Use in your environment
+
+You can now use `envoluntary` in your development shell or system configuration:
+
+```nix
+devShells.default = pkgs.mkShell {
+  buildInputs = [ pkgs.envoluntary ];
+};
+```
 
 ## Configuration
 
