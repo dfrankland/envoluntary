@@ -24,6 +24,7 @@ fn main() -> anyhow::Result<()> {
                 config::add_entry(
                     args.config_path.as_deref(),
                     args.pattern,
+                    args.file_pattern,
                     args.flake_reference,
                     args.impure,
                 )?;

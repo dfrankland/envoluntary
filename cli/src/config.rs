@@ -6,6 +6,7 @@ use std::{
 };
 
 use duct::cmd;
+use env_hooks::state;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -33,12 +34,24 @@ pub fn edit(
 
 pub fn add_entry(
     provided_config_path: Option<&Path>,
-    pattern: String,
+    pattern: Option<String>,
+    file_pattern: Option<String>,
     flake_reference: String,
     impure: Option<bool>,
 ) -> anyhow::Result<()> {
+    let pattern = if let Some(pattern) = pattern {
+        Some(Regex::new(&pattern)?)
+    } else {
+        None
+    };
+    let file_pattern = if let Some(file_pattern) = file_pattern {
+        Some(Regex::new(&file_pattern)?)
+    } else {
+        None
+    };
     let entry = ConfigEntry {
-        pattern: Regex::new(&pattern)?,
+        pattern,
+        file_pattern,
         config: Config {
             flake_reference,
             impure,
@@ -98,12 +111,27 @@ impl EnvoluntaryConfig {
     }
 
     pub fn matching_entries(&self, path: &Path) -> Vec<ConfigEntry> {
-        let path = path.to_string_lossy();
         self.entries
             .as_deref()
             .unwrap_or(&[])
             .iter()
-            .filter(|entry| entry.pattern.is_match(&path))
+            .filter(|entry| {
+                let dir_match = entry
+                    .pattern
+                    .as_ref()
+                    .map(|x| x.is_match(&path.to_string_lossy()));
+                let file_match = entry.file_pattern.as_ref().map(|pattern| {
+                    state::ShellPromptState::check_files_backwards(path, |filename| {
+                        pattern.is_match(filename)
+                    })
+                });
+                match (dir_match, file_match) {
+                    (Some(dir_match), Some(file_match)) => dir_match && file_match,
+                    (None, Some(file_match)) => file_match,
+                    (Some(dir_match), None) => dir_match,
+                    _ => false,
+                }
+            })
             .cloned()
             .collect()
     }
@@ -111,8 +139,10 @@ impl EnvoluntaryConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigEntry {
-    #[serde(with = "serde_regex")]
-    pub pattern: Regex,
+    #[serde(default, with = "serde_regex")]
+    pub pattern: Option<Regex>,
+    #[serde(default, with = "serde_regex")]
+    pub file_pattern: Option<Regex>,
     #[serde(flatten)]
     pub config: Config,
 }

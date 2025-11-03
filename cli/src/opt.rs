@@ -83,18 +83,28 @@ pub struct EnvoluntaryConfigEditArgs {
 /// Arguments for the `config add-entry` command.
 #[derive(Debug, Clone, Args)]
 pub struct EnvoluntaryConfigAddEntryArgs {
-    /// A regex pattern to match against directory paths.
-    ///
-    /// This pattern is matched against the full path of the current directory.
-    /// When a directory path matches this pattern, the associated flake reference will be used.
-    pub pattern: String,
-
     /// A Nix flake reference to load when the pattern matches.
     ///
     /// This can be a local flake path (e.g., `./flake.nix`),
     /// or a remote flake reference (e.g., `github:owner/repo`).
     /// See: <https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references>
     pub flake_reference: String,
+
+    /// A regex pattern to match against directory paths.
+    ///
+    /// This pattern is matched against the full path of the current directory.
+    /// When a directory path matches this pattern, the associated flake reference will be used.
+    /// If file_pattern and pattern are specified then both must match.
+    #[arg(short, long)]
+    pub pattern: Option<String>,
+
+    /// A regex pattern to match against file names in current or any parent directories.
+    ///
+    /// This pattern is matched against the file name of the current directory.
+    /// When a directory path matches this pattern, the associated flake reference will be used.
+    /// If file_pattern and pattern are specified then both must match.
+    #[arg(short, long)]
+    pub file_pattern: Option<String>,
 
     /// Whether to evaluate the flake in impure mode.
     ///

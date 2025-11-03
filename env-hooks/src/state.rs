@@ -34,6 +34,7 @@
 //     resetEnvVars2 --> |success| setEnvVars
 //     setEnvVars --> |success| DoneState
 
+use std::result::Result;
 use std::{
     env,
     ffi::{OsStr, OsString},
@@ -56,6 +57,22 @@ impl ShellPromptState {
             env::current_dir()?
         };
         Ok(CurrentDirState { current_dir })
+    }
+    pub fn check_files_backwards<T: Fn(&str) -> bool>(dir: &Path, check_cb: T) -> bool {
+        if let Result::Ok(entries) = dir.read_dir() {
+            for entry in entries {
+                if let Result::Ok(entry) = entry
+                    && check_cb(&entry.file_name().to_string_lossy())
+                {
+                    return true;
+                }
+            }
+        }
+        if let Some(parent) = dir.parent() {
+            Self::check_files_backwards(parent, check_cb)
+        } else {
+            false
+        }
     }
 }
 
