@@ -277,6 +277,7 @@ static IGNORED_ENV_VAR_KEYS: Lazy<HashSet<&str>> = Lazy::new(|| {
         "SHELLOPTS",
         "SHLVL",
         "_",
+        "__CF_USER_TEXT_ENCODING",
     ])
 });
 
