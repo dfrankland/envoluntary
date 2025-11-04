@@ -39,19 +39,9 @@ pub fn add_entry(
     flake_reference: String,
     impure: Option<bool>,
 ) -> anyhow::Result<()> {
-    let pattern = if let Some(pattern) = pattern {
-        Some(Regex::new(&pattern)?)
-    } else {
-        None
-    };
-    let file_pattern = if let Some(file_pattern) = file_pattern {
-        Some(Regex::new(&file_pattern)?)
-    } else {
-        None
-    };
     let entry = ConfigEntry {
-        pattern,
-        file_pattern,
+        pattern: pattern.map(|p| Regex::new(&p)).transpose()?,
+        file_pattern: file_pattern.map(|p| Regex::new(&p)).transpose()?,
         config: Config {
             flake_reference,
             impure,
