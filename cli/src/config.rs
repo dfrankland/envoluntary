@@ -101,12 +101,17 @@ impl EnvoluntaryConfig {
 
     pub fn matching_entries(&self, path: &Path) -> Vec<ConfigEntry> {
         let path_string = path.to_string_lossy();
+        let path_string_with_tilde = replace_home_with_tilde(&path_string);
         self.entries
             .as_deref()
             .unwrap_or(&[])
             .iter()
             .filter(|entry| {
-                let pattern_match = entry.pattern.is_match(&path_string);
+                let pattern_match = path_is_match_with_or_without_home_tilde(
+                    &path_string,
+                    path_string_with_tilde.as_ref(),
+                    &entry.pattern,
+                );
                 if let Some(pattern_adjacent) = &entry.pattern_adjacent
                     && pattern_match
                 {
@@ -131,13 +136,42 @@ fn find_adjacent_dir_entry_walking_up_file_hierarchy(
         fs::read_dir(ancestor).ok().and_then(|read_dir| {
             read_dir.filter_map(Result::ok).find_map(|dir_entry| {
                 let dir_entry_path = dir_entry.path();
-                if pattern_adjacent.is_match(&dir_entry_path.to_string_lossy()) {
+                let dir_entry_path_string = dir_entry_path.to_string_lossy();
+                let dir_entry_path_string_with_tilde =
+                    replace_home_with_tilde(&dir_entry_path_string);
+                if path_is_match_with_or_without_home_tilde(
+                    dir_entry_path_string,
+                    dir_entry_path_string_with_tilde,
+                    pattern_adjacent,
+                ) {
                     Some(dir_entry_path)
                 } else {
                     None
                 }
             })
         })
+    })
+}
+
+fn path_is_match_with_or_without_home_tilde(
+    path_string: impl AsRef<str>,
+    path_string_with_tilde: Option<impl AsRef<str>>,
+    pattern: &Regex,
+) -> bool {
+    pattern.is_match(path_string.as_ref())
+        || path_string_with_tilde
+            .as_ref()
+            .map(|p| pattern.is_match(p.as_ref()))
+            .unwrap_or_default()
+}
+
+fn replace_home_with_tilde(path_string: impl AsRef<str>) -> Option<String> {
+    get_config_home_dir().ok().and_then(|home_path| {
+        let home_path_string = String::from(home_path.to_string_lossy());
+        if path_string.as_ref().starts_with(&home_path_string) {
+            return Some(path_string.as_ref().replacen(&home_path_string, "~", 1));
+        }
+        None
     })
 }
 

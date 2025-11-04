@@ -71,7 +71,8 @@ graph TD
    impure = true
 
    [[entries]]
-   pattern = ".*/projects/rust-.*"
+   # Patterns can match on tilde too
+   pattern = "~/projects/rust-.*"
    flake_reference = "github:NixOS/templates/30a6f18?dir=rust"
 
    # Adjacent files or directories can be used to narrow pattern matches

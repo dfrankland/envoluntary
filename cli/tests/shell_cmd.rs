@@ -93,13 +93,18 @@ fn test_shell_export_state_init_update_and_reset() {
             flake_reference = "github:owner/repo"
 
             [[entries]]
-            pattern = "^/some/other/dir(/.*)?"
+            pattern = "~/some/other/dir(/.*)?"
             flake_reference = "github:other_github_owner/repo"
 
             [[entries]]
             pattern = ".*"
             flake_reference = "github:owner/super_cool_tool"
             pattern_adjacent = ".*/\\.supercooltool"
+
+            [[entries]]
+            pattern = ".*"
+            flake_reference = "github:owner/awesome_tool"
+            pattern_adjacent = "~/\\.awesometool"
         })
         .unwrap(),
     )
@@ -161,7 +166,8 @@ exit 0
             "--current-dir",
             "/no-match-path",
         ])
-        .env("PATH", &new_path);
+        .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", "/home");
 
         let no_match_output = cmd.output().unwrap();
 
@@ -185,7 +191,8 @@ exit 0
             "--current-dir",
             "/some/dir",
         ])
-        .env("PATH", &new_path);
+        .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", "/home");
 
         let initial_output = cmd.output().unwrap();
 
@@ -221,9 +228,10 @@ exit 0
             "--cache-dir",
             &cache_dir.path().to_string_lossy(),
             "--current-dir",
-            "/some/other/dir",
+            "/home/some/other/dir",
         ])
         .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", "/home")
         .envs(initial_env_vars.iter());
 
         let update_output = cmd.output().unwrap();
@@ -263,9 +271,10 @@ exit 0
             "--cache-dir",
             &cache_dir.path().to_string_lossy(),
             "--current-dir",
-            "/some/other/dir",
+            "/home/some/other/dir",
         ])
         .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", "/home")
         .envs(update_env_vars.iter());
 
         let no_update_output = cmd.output().unwrap();
@@ -292,6 +301,7 @@ exit 0
             "/",
         ])
         .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", "/home")
         .envs(update_env_vars.iter());
 
         let reset_output = cmd.output().unwrap();
@@ -322,7 +332,8 @@ exit 0
             "--current-dir",
             &bin_dir.to_string_lossy(),
         ])
-        .env("PATH", &new_path);
+        .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", "/home");
 
         // nothing matching the pattern adjacent yet
         let pattern_adjacent_no_match_output =
@@ -348,6 +359,46 @@ exit 0
             vec![
                 "export FAKE_VAR=true;",
                 "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4zQMAXAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9zdXBlcl9jb29sX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19ACCjTjk=';",
+            ]
+        );
+    }
+
+    {
+        let home_dir = tempfile::tempdir().unwrap();
+        let mut cmd = Command::new(cargo::cargo_bin!());
+        cmd.args([
+            "shell",
+            "export",
+            "bash",
+            "--config-path",
+            &config_file.to_string_lossy(),
+            "--cache-dir",
+            &cache_dir.path().to_string_lossy(),
+            "--current-dir",
+            &home_dir.path().to_string_lossy(),
+        ])
+        .env("PATH", &new_path)
+        .env("XDG_CONFIG_HOME", home_dir.path());
+
+        let awesometool_file = home_dir.path().join(".awesometool");
+        fs::File::create_new(awesometool_file).unwrap();
+
+        let pattern_adjacent_home_dir_output = cmd.output().unwrap();
+
+        assert!(pattern_adjacent_home_dir_output.status.success());
+
+        let pattern_adjacent_home_dir_export = String::from(String::from_utf8_lossy(
+            &pattern_adjacent_home_dir_output.stdout,
+        ));
+
+        assert_eq!(
+            pattern_adjacent_home_dir_export
+                .split('\n')
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>(),
+            vec![
+                "export FAKE_VAR=true;",
+                "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4tQMALAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9hd2Vzb21lX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19AB6hxkc=';",
             ]
         );
     }
