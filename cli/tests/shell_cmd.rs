@@ -88,12 +88,18 @@ fn test_shell_export_state_init_update_and_reset() {
     fs::write(
         &config_file,
         toml::to_string_pretty(&toml::toml! {
-          [[entries]]
-          pattern = "^/some/dir(/.*)?"
-          flake_reference = "github:owner/repo"
-          [[entries]]
-          pattern = "^/some/other/dir(/.*)?"
-          flake_reference = "github:other_github_owner/repo"
+            [[entries]]
+            pattern = "^/some/dir(/.*)?"
+            flake_reference = "github:owner/repo"
+
+            [[entries]]
+            pattern = "^/some/other/dir(/.*)?"
+            flake_reference = "github:other_github_owner/repo"
+
+            [[entries]]
+            pattern = ".*"
+            flake_reference = "github:owner/super_cool_tool"
+            pattern_adjacent = ".*/\\.supercooltool"
         })
         .unwrap(),
     )
@@ -302,4 +308,47 @@ exit 0
             .collect::<Vec<_>>(),
         vec!["unset FAKE_VAR;", "unset ENVOLUNTARY_ENV_STATE;"]
     );
+
+    {
+        let mut cmd = Command::new(cargo::cargo_bin!());
+        cmd.args([
+            "shell",
+            "export",
+            "bash",
+            "--config-path",
+            &config_file.to_string_lossy(),
+            "--cache-dir",
+            &cache_dir.path().to_string_lossy(),
+            "--current-dir",
+            &bin_dir.to_string_lossy(),
+        ])
+        .env("PATH", &new_path);
+
+        // nothing matching the pattern adjacent yet
+        let pattern_adjacent_no_match_output =
+            String::from(String::from_utf8_lossy(&cmd.output().unwrap().stdout));
+        assert_eq!(pattern_adjacent_no_match_output, "");
+
+        // create a file that matches the pattern adjacent, in the parent directory
+        let supercooltool_file = work_dir.path().join(".supercooltool");
+        fs::File::create_new(supercooltool_file).unwrap();
+
+        let pattern_adjacent_output = cmd.output().unwrap();
+
+        assert!(pattern_adjacent_output.status.success());
+
+        let pattern_adjacent_export =
+            String::from(String::from_utf8_lossy(&pattern_adjacent_output.stdout));
+
+        assert_eq!(
+            pattern_adjacent_export
+                .split('\n')
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>(),
+            vec![
+                "export FAKE_VAR=true;",
+                "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4zQMAXAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9zdXBlcl9jb29sX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19ACCjTjk=';",
+            ]
+        );
+    }
 }

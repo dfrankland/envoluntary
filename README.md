@@ -67,9 +67,17 @@ graph TD
    [[entries]]
    pattern = ".*/projects/my-website(/.*)?"
    flake_reference = "~/nix-dev-shells/nodejs"
+   # Set whether the flake is impure
+   impure = true
 
    [[entries]]
    pattern = ".*/projects/rust-.*"
+   flake_reference = "github:NixOS/templates/30a6f18?dir=rust"
+
+   # Adjacent files or directories can be used to narrow pattern matches
+   [[entries]]
+   pattern = ".*"
+   pattern_adjacent = ".*/Cargo\\.toml"
    flake_reference = "github:NixOS/templates/30a6f18?dir=rust"
    ```
 

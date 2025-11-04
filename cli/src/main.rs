@@ -25,6 +25,7 @@ fn main() -> anyhow::Result<()> {
                     args.config_path.as_deref(),
                     args.pattern,
                     args.flake_reference,
+                    args.pattern_adjacent,
                     args.impure,
                 )?;
             }
