@@ -115,7 +115,7 @@ fn test_shell_export_state_init_update_and_reset() {
 
 if [[ "$@" == "--extra-experimental-features nix-command flakes --version" ]]; then
     echo "nix (Nix) 2.30.0"
-elif [[ "$@" == "--extra-experimental-features nix-command flakes print-dev-env"* ]]; then
+elif [[ "$@" == "--extra-experimental-features nix-command flakes print-dev-env --no-write-lock-file --profile "* ]]; then
 rc="{profile_rc_content}"
 for ((i=0; i<$#; i++)); do
     if [[ "${{@:$i:1}}" == "--profile" ]]; then
@@ -125,7 +125,7 @@ for ((i=0; i<$#; i++)); do
     fi
 done
 echo "$rc"
-elif [[ "$@" == "--extra-experimental-features nix-command flakes build"* ]]; then
+elif [[ "$@" == "--extra-experimental-features nix-command flakes build --out-link "* ]]; then
 for ((i=0; i<$#; i++)); do
     if [[ "${{@:$i:1}}" == "--out-link" ]]; then
         link_path="${{@:$((i+1)):1}}"
@@ -135,7 +135,7 @@ for ((i=0; i<$#; i++)); do
         break
     fi
 done
-elif [[ "$@" == "--extra-experimental-features nix-command flakes flake archive"* ]]; then
+elif [[ "$@" == "--extra-experimental-features nix-command flakes flake archive --json --no-write-lock-file "* ]]; then
 echo '{{ "inputs": {{ "nixpkgs": {{ "inputs": {{}}, "path": "/nix/store/yfzmnk75f009yb7b542kf4r7qaqq9kid-source" }} }} }}'
 fi
 
