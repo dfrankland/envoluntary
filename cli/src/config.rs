@@ -35,10 +35,12 @@ pub fn add_entry(
     provided_config_path: Option<&Path>,
     pattern: String,
     flake_reference: String,
+    pattern_adjacent: Option<String>,
     impure: Option<bool>,
 ) -> anyhow::Result<()> {
     let entry = ConfigEntry {
         pattern: Regex::new(&pattern)?,
+        pattern_adjacent: pattern_adjacent.and_then(|s| Regex::new(&s).ok()),
         config: Config {
             flake_reference,
             impure,
@@ -98,21 +100,53 @@ impl EnvoluntaryConfig {
     }
 
     pub fn matching_entries(&self, path: &Path) -> Vec<ConfigEntry> {
-        let path = path.to_string_lossy();
+        let path_string = path.to_string_lossy();
         self.entries
             .as_deref()
             .unwrap_or(&[])
             .iter()
-            .filter(|entry| entry.pattern.is_match(&path))
+            .filter(|entry| {
+                let pattern_match = entry.pattern.is_match(&path_string);
+                if let Some(pattern_adjacent) = &entry.pattern_adjacent
+                    && pattern_match
+                {
+                    return find_adjacent_dir_entry_walking_up_file_hierarchy(
+                        PathBuf::from(path),
+                        pattern_adjacent,
+                    )
+                    .is_some();
+                }
+                pattern_match
+            })
             .cloned()
             .collect()
     }
+}
+
+fn find_adjacent_dir_entry_walking_up_file_hierarchy(
+    start_dir: PathBuf,
+    pattern_adjacent: &Regex,
+) -> Option<PathBuf> {
+    start_dir.ancestors().find_map(|ancestor| {
+        fs::read_dir(ancestor).ok().and_then(|read_dir| {
+            read_dir.filter_map(Result::ok).find_map(|dir_entry| {
+                let dir_entry_path = dir_entry.path();
+                if pattern_adjacent.is_match(&dir_entry_path.to_string_lossy()) {
+                    Some(dir_entry_path)
+                } else {
+                    None
+                }
+            })
+        })
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigEntry {
     #[serde(with = "serde_regex")]
     pub pattern: Regex,
+    #[serde(with = "serde_regex", default)]
+    pub pattern_adjacent: Option<Regex>,
     #[serde(flatten)]
     pub config: Config,
 }

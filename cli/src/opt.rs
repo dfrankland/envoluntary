@@ -96,6 +96,15 @@ pub struct EnvoluntaryConfigAddEntryArgs {
     /// See: <https://nix.dev/manual/nix/latest/command-ref/new-cli/nix3-flake#flake-references>
     pub flake_reference: String,
 
+    /// A regex pattern to match against entries in directories adjacent to the current path.
+    ///
+    /// If provided, in addition to matching the `pattern` against the directory path,
+    /// Envoluntary will walk up the file hierarchy and only consider entries as matching
+    /// if an adjacent file or directory entry (in any ancestor directory) matches this pattern.
+    /// This is useful for only enabling an environment if a specific file or directory is present nearby.
+    #[arg(long)]
+    pub pattern_adjacent: Option<String>,
+
     /// Whether to evaluate the flake in impure mode.
     ///
     /// If set to `true`, Nix will evaluate the flake with `--impure`, allowing access to environment variables

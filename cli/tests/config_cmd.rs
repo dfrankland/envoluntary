@@ -99,6 +99,8 @@ fn config_add_entry_with_custom_config_path() {
             "add-entry",
             "^/home/test",
             "github:owner/repo",
+            "--pattern-adjacent",
+            ".*/package.json",
             "--impure",
             "true",
             "--config-path",
@@ -113,10 +115,11 @@ fn config_add_entry_with_custom_config_path() {
         assert_eq!(
             config,
             toml::toml! {
-              [[entries]]
-              pattern = "^/home/test"
-              flake_reference = "github:owner/repo"
-              impure = true
+                [[entries]]
+                pattern = "^/home/test"
+                flake_reference = "github:owner/repo"
+                pattern_adjacent = ".*/package.json"
+                impure = true
             }
             .into()
         )
@@ -141,14 +144,15 @@ fn config_add_entry_with_custom_config_path() {
         assert_eq!(
             config,
             toml::toml! {
-              [[entries]]
-              pattern = "^/home/test"
-              flake_reference = "github:owner/repo"
-              impure = true
+                [[entries]]
+                pattern = "^/home/test"
+                flake_reference = "github:owner/repo"
+                pattern_adjacent = ".*/package.json"
+                impure = true
 
-              [[entries]]
-              pattern = ".*"
-              flake_reference = "github:owner/repo"
+                [[entries]]
+                pattern = ".*"
+                flake_reference = "github:owner/repo"
             }
             .into()
         )
@@ -172,9 +176,10 @@ fn config_add_entry_with_custom_config_path() {
         assert_eq!(
             json_output,
             serde_json::json!({
-              "pattern": ".*",
-              "flake_reference": "github:owner/repo",
-              "impure": null
+                "pattern": ".*",
+                "flake_reference": "github:owner/repo",
+                "pattern_adjacent": null,
+                "impure": null
             })
         )
     }
