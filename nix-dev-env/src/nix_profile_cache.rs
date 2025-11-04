@@ -82,14 +82,17 @@ impl NixProfileCache {
             .cache_dir
             .join(format!("flake-tmp-profile.{}", process::id()));
 
-        let stdout_content = nix_command::nix([
-            OsStr::new("print-dev-env"),
-            OsStr::new(self.impure_arg()),
+        let mut args = vec![OsStr::new("print-dev-env")];
+        if let Some(impure_arg) = self.impure_arg() {
+            args.push(OsStr::new(impure_arg));
+        }
+        args.extend_from_slice(&[
             OsStr::new("--no-write-lock-file"),
             OsStr::new("--profile"),
             tmp_profile.as_os_str(),
             OsStr::new(&self.flake_reference.flake_reference_string),
-        ])?;
+        ]);
+        let stdout_content = nix_command::nix(args)?;
 
         fs::File::create(&self.profile_rc_file)?.write_all(stdout_content.as_bytes())?;
 
@@ -111,33 +114,38 @@ impl NixProfileCache {
         &self.profile_rc_file
     }
 
-    fn impure_arg(&self) -> &str {
+    fn impure_arg(&self) -> Option<&str> {
         match self.evaluation_mode {
-            EvaluationMode::Impure => "--impure",
-            EvaluationMode::Pure => "",
+            EvaluationMode::Impure => Some("--impure"),
+            EvaluationMode::Pure => None,
         }
     }
 
     fn add_gcroot(&self, store_path: &Path, symlink: &Path) -> anyhow::Result<()> {
-        nix_command::nix([
-            OsStr::new("build"),
-            OsStr::new(&self.impure_arg()),
+        let mut args = vec![OsStr::new("build")];
+        if let Some(impure_arg) = self.impure_arg() {
+            args.push(OsStr::new(impure_arg));
+        }
+        args.extend_from_slice(&[
             OsStr::new("--out-link"),
             symlink.as_os_str(),
             store_path.as_os_str(),
-        ])?;
+        ]);
+        nix_command::nix(args)?;
         Ok(())
     }
 
     fn get_flake_input_paths(&self) -> anyhow::Result<Vec<PathBuf>> {
-        let stdout_content = nix_command::nix([
-            "flake",
-            "archive",
-            self.impure_arg(),
+        let mut args = vec!["flake", "archive"];
+        if let Some(impure_arg) = self.impure_arg() {
+            args.push(impure_arg);
+        }
+        args.extend_from_slice(&[
             "--json",
             "--no-write-lock-file",
             &self.flake_reference.flake_reference_string,
-        ])?;
+        ]);
+        let stdout_content = nix_command::nix(args)?;
         let json = serde_json::from_str::<Value>(&stdout_content)?;
         Ok(get_paths_from_doc(&json))
     }

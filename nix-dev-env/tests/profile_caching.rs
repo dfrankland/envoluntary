@@ -38,7 +38,7 @@ fn test_nix_profile_cache() {
 
 echo "$@" >> "{log_file}"
 
-if [[ "$@" == "--extra-experimental-features nix-command flakes print-dev-env"* ]]; then
+if [[ "$@" == "--extra-experimental-features nix-command flakes print-dev-env --impure --no-write-lock-file --profile "* ]]; then
     rc="{profile_rc_content}"
     for ((i=0; i<$#; i++)); do
         if [[ "${{@:$i:1}}" == "--profile" ]]; then
@@ -48,7 +48,7 @@ if [[ "$@" == "--extra-experimental-features nix-command flakes print-dev-env"* 
         fi
     done
     echo "$rc"
-elif [[ "$@" == "--extra-experimental-features nix-command flakes build"* ]]; then
+elif [[ "$@" == "--extra-experimental-features nix-command flakes build --impure --out-link "* ]]; then
     for ((i=0; i<$#; i++)); do
         if [[ "${{@:$i:1}}" == "--out-link" ]]; then
             link_path="${{@:$((i+1)):1}}"
@@ -58,7 +58,7 @@ elif [[ "$@" == "--extra-experimental-features nix-command flakes build"* ]]; th
             break
         fi
     done
-elif [[ "$@" == "--extra-experimental-features nix-command flakes flake archive"* ]]; then
+elif [[ "$@" == "--extra-experimental-features nix-command flakes flake archive --impure --json --no-write-lock-file "* ]]; then
     echo '{{ "inputs": {{ "nixpkgs": {{ "inputs": {{}}, "path": "{nixpkgs_path}" }} }} }}'
 fi
 
