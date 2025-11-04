@@ -31,7 +31,7 @@
           # NB: use nightly for https://github.com/rust-lang/rustfmt/issues/6241
             p.rust-bin.selectLatestNightlyWith (toolchain:
               toolchain.default.override {
-                extensions = pkgs.lib.optionals pkgs.stdenv.isLinux ["llvm-tools-preview" "rust-src"];
+                extensions = ["rust-src"] ++ pkgs.lib.optionals pkgs.stdenv.isLinux ["llvm-tools-preview"];
               })
         );
         src = craneLib.cleanCargoSource ./.;
