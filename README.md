@@ -192,10 +192,6 @@ Add `envoluntary` to your flake inputs (if not already added):
 ```nix
 home-manager.sharedModules = [ envoluntary.homeModules.default ];
 home-manager.users.your-username = {
-  imports = [
-    envoluntary.homeModules.default
-  ];
-
   programs.envoluntary = {
     enable = true;
 
