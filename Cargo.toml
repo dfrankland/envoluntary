@@ -6,7 +6,7 @@ members = ["cli", "env-hooks", "nix-dev-env"]
 anyhow = "1.0.100"
 base64 = "0.22.1"
 bstr = "1.12.0"
-clap = { version = "4.5.49", features = ["derive"] }
+clap = { version = "4.5.49", features = ["derive", "env"] }
 duct = "1.1.0"
 indexmap = { version = "2.12.0", features = ["serde"] }
 once_cell = "1.21.3"

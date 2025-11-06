@@ -70,13 +70,13 @@ pub struct EnvoluntaryConfigEditArgs {
     /// Path to the configuration file to edit (overrides default location).
     ///
     /// If not provided, uses the default configuration path.
-    #[arg(long)]
+    #[arg(long, env = "ENVOLUNTARY_CONFIG_PATH")]
     pub config_path: Option<PathBuf>,
 
     /// Program to use for editing the configuration file (overrides `$EDITOR`).
     ///
     /// If not provided, uses the `$EDITOR` environment variable.
-    #[arg(long)]
+    #[arg(long, env = "EDITOR")]
     pub editor_program: Option<OsString>,
 }
 
@@ -115,7 +115,7 @@ pub struct EnvoluntaryConfigAddEntryArgs {
     /// Path to the configuration file (overrides default location).
     ///
     /// If not provided, uses the default configuration path.
-    #[arg(long)]
+    #[arg(long, env = "ENVOLUNTARY_CONFIG_PATH")]
     pub config_path: Option<PathBuf>,
 }
 
@@ -128,7 +128,7 @@ pub struct EnvoluntaryConfigPrintMatchingEntriesArgs {
     /// Path to the configuration file (overrides default location).
     ///
     /// If not provided, uses the default configuration path.
-    #[arg(long)]
+    #[arg(long, env = "ENVOLUNTARY_CONFIG_PATH")]
     pub config_path: Option<PathBuf>,
 }
 
@@ -181,13 +181,13 @@ pub struct EnvoluntaryShellExportArgs {
     /// Path to the configuration file (overrides default location).
     ///
     /// If not provided, uses the default configuration path.
-    #[arg(long)]
+    #[arg(long, env = "ENVOLUNTARY_CONFIG_PATH")]
     pub config_path: Option<PathBuf>,
 
     /// Directory for caching Nix profiles (overrides default cache location).
     ///
     /// If not provided, uses `$XDG_CACHE_HOME/envoluntary` (or `~/.cache/envoluntary` if not set).
-    #[arg(long)]
+    #[arg(long, env = "ENVOLUNTARY_CACHE_DIR")]
     pub cache_dir: Option<PathBuf>,
 
     /// Explicit list of Nix flake references to load (overrides config-based matching).
@@ -231,7 +231,7 @@ pub struct EnvoluntaryShellPrintCachePathArgs {
     /// Directory for caching Nix profiles (overrides default cache location).
     ///
     /// If not provided, uses `$XDG_CACHE_HOME/envoluntary` (or `~/.cache/envoluntary` if not set).
-    #[arg(long)]
+    #[arg(long, env = "ENVOLUNTARY_CACHE_DIR")]
     pub cache_dir: Option<PathBuf>,
 }
 

@@ -21,12 +21,8 @@ pub fn edit(
     provided_editor_program: Option<&OsStr>,
 ) -> anyhow::Result<()> {
     let config_path = get_config_path(provided_config_path)?;
-    let editor_program = if let Some(editor_program) = provided_editor_program {
-        editor_program
-    } else {
-        &env::var_os("EDITOR")
-            .ok_or_else(|| anyhow::anyhow!("Couldn't find $EDITOR for config."))?
-    };
+    let editor_program =
+        provided_editor_program.ok_or(anyhow::anyhow!("Couldn't find $EDITOR for config."))?;
     cmd!(editor_program, config_path).start()?.wait()?;
     Ok(())
 }
