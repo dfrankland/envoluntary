@@ -97,7 +97,8 @@ module that:
 - Exports the `envoluntary` package as its `defaultPackage`
 - Provides an overlay that makes `envoluntary` available in your own flakes
 
-### Using the Overlay
+<details>
+<summary><strong>Using the Overlay</strong></summary>
 
 To use `envoluntary` in your own `flake.nix`, follow these steps:
 
@@ -149,6 +150,159 @@ devShells.default = pkgs.mkShell {
 };
 ```
 
+</details>
+
+<details>
+<summary><strong>Using the home-manager Module</strong></summary>
+
+The `envoluntary` flake exports a home-manager module for seamless integration
+with your home configuration.
+
+> **Note:** The overlay must be applied to your `pkgs` for this module to work.
+> See the "Using the Overlay" section above.
+
+#### 1. Add the input
+
+Add `envoluntary` to your flake inputs (if not already added):
+
+```nix
+{
+  description = "Your flake description";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    envoluntary = {
+      url = "github:dfrankland/envoluntary";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
+  };
+
+  outputs = { self, nixpkgs, home-manager, envoluntary }:
+    # ... rest of your flake
+}
+```
+
+#### 2. Add the module to your home configuration
+
+```nix
+home-manager.sharedModules = [ envoluntary.homeModules.default ];
+home-manager.users.your-username = {
+  imports = [
+    envoluntary.homeModules.default
+  ];
+
+  programs.envoluntary = {
+    enable = true;
+
+    # Optional: enable shell integration (all enabled by default)
+    enableBashIntegration = true;
+    enableZshIntegration = true;
+    enableFishIntegration = true;
+
+    # Optional: provide envoluntary configuration
+    config = {
+      entries = [
+        {
+          pattern = ".*/projects/my-website(/.*)?";
+          flake_reference = "~/nix-dev-shells/nodejs";
+          impure = true;
+        }
+        {
+          pattern = "~/projects/rust-.*";
+          flake_reference = "github:NixOS/templates/30a6f18?dir=rust";
+        }
+        {
+          pattern = ".*";
+          pattern_adjacent = ".*/Cargo\\.toml";
+          flake_reference = "github:NixOS/templates/30a6f18?dir=rust";
+        }
+      ];
+    };
+  };
+};
+```
+
+</details>
+
+<details>
+<summary><strong>Using the NixOS Module</strong></summary>
+
+The `envoluntary` flake also exports a NixOS module for system-wide configuration.
+
+> **Note:** The overlay must be applied to your `pkgs` for this module to work.
+> See the "Using the Overlay" section above.
+
+#### 1. Add the input
+
+Add `envoluntary` to your flake inputs (if not already added):
+
+```nix
+{
+  description = "Your flake description";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    envoluntary = {
+      url = "github:dfrankland/envoluntary";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { self, nixpkgs, envoluntary }:
+    # ... rest of your flake
+}
+```
+
+#### 2. Add the module to your system configuration
+
+```nix
+{
+  imports = [
+    envoluntary.nixosModules.default
+  ];
+
+  programs.envoluntary = {
+    enable = true;
+
+    # Optional: enable shell integration (all enabled by default)
+    enableBashIntegration = true;
+    enableZshIntegration = true;
+    enableFishIntegration = true;
+
+    # Whether to load envoluntary in nix-shell, nix shell, or nix develop
+    # (default: true)
+    loadInNixShell = true;
+
+    # Envoluntary configuration
+    config = {
+      entries = [
+        {
+          pattern = ".*/projects/my-website(/.*)?";
+          flake_reference = "~/nix-dev-shells/nodejs";
+          impure = true;
+        }
+        {
+          pattern = "~/projects/rust-.*";
+          flake_reference = "github:NixOS/templates/30a6f18?dir=rust";
+        }
+        {
+          pattern = ".*";
+          pattern_adjacent = ".*/Cargo\\.toml";
+          flake_reference = "github:NixOS/templates/30a6f18?dir=rust";
+        }
+      ];
+    };
+  };
+}
+```
+
+</details>
+
 ## Configuration
 
 ### Adding entries
@@ -168,6 +322,7 @@ envoluntary config add-entry ".*/my-project(/.*)?" ./path/to/flake
 ### Testing patterns
 
 See which entries match a given path:
+
 ```bash
 envoluntary config print-matching-entries /home/user/projects/homelab
 ```
@@ -256,7 +411,8 @@ directory gets the right environment—no per-project files needed.
 
 **Not ideal for:**
 
-- Projects where the environment definition should be version-controlled alongside code
+- Projects where the environment definition should be version-controlled
+  alongside code
 - Shared repositories where other developers need easy access to the same environment
 - One-off projects where you're fine with manual `nix develop`
 
