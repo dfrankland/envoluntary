@@ -6,6 +6,7 @@ use std::{
 };
 
 use duct::cmd;
+use path_clean::PathClean;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -59,9 +60,10 @@ pub fn print_matching_entries(
 ) -> anyhow::Result<()> {
     let config_path = get_config_path(provided_config_path)?;
     let envoluntary_config = EnvoluntaryConfig::load(&config_path)?;
-    for entry in envoluntary_config.matching_entries(path) {
-        println!("{}", serde_json::to_string(&entry)?);
-    }
+    println!(
+        "{}",
+        serde_json::to_string(&envoluntary_config.matching_entries(path)?)?
+    );
     Ok(())
 }
 
@@ -95,17 +97,24 @@ impl EnvoluntaryConfig {
         Ok(())
     }
 
-    pub fn matching_entries(&self, path: &Path) -> Vec<ConfigEntry> {
-        let path_string = path.to_string_lossy();
-        let path_string_with_tilde = replace_home_with_tilde(&path_string);
-        self.entries
+    pub fn matching_entries(&self, path: &Path) -> anyhow::Result<Vec<ConfigEntry>> {
+        let absolute_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            env::current_dir()?.join(path)
+        }
+        .clean();
+        let absolute_path_string = absolute_path.to_string_lossy();
+        let absolute_path_string_with_tilde = replace_home_with_tilde(&absolute_path_string);
+        let matched_entries = self
+            .entries
             .as_deref()
             .unwrap_or(&[])
             .iter()
             .filter(|entry| {
                 let pattern_match = path_is_match_with_or_without_home_tilde(
-                    &path_string,
-                    path_string_with_tilde.as_ref(),
+                    &absolute_path_string,
+                    absolute_path_string_with_tilde.as_ref(),
                     &entry.pattern,
                 );
                 if let Some(pattern_adjacent) = &entry.pattern_adjacent
@@ -120,7 +129,8 @@ impl EnvoluntaryConfig {
                 pattern_match
             })
             .cloned()
-            .collect()
+            .collect();
+        Ok(matched_entries)
     }
 }
 
