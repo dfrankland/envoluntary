@@ -89,7 +89,7 @@ pub fn print_export(args: EnvoluntaryShellExportArgs) -> anyhow::Result<()> {
                 .collect()
         } else {
             envoluntary_config
-                .matching_entries(current_dir)
+                .matching_entries(current_dir)?
                 .into_iter()
                 .map(|entry| entry.config)
                 .collect()

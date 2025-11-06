@@ -89,7 +89,7 @@ fn config_add_entry_with_custom_config_path() {
             &config_path.to_string_lossy(),
         ]);
 
-        cmd.assert().success().stdout(predicate::eq(""));
+        cmd.assert().success().stdout(predicate::eq("[]\n"));
     }
 
     {
@@ -175,12 +175,12 @@ fn config_add_entry_with_custom_config_path() {
 
         assert_eq!(
             json_output,
-            serde_json::json!({
+            serde_json::json!([{
                 "pattern": ".*",
                 "flake_reference": "github:owner/repo",
                 "pattern_adjacent": null,
                 "impure": null
-            })
+            }])
         )
     }
 }

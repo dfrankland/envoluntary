@@ -393,6 +393,7 @@ dependencies = [
  "env-hooks",
  "nix-dev-env",
  "once_cell",
+ "path-clean",
  "predicates",
  "regex",
  "ruzstd",
@@ -683,6 +684,12 @@ checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "path-clean"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17359afc20d7ab31fdb42bb844c8b3bb1dabd7dcf7e68428492da7f16966fcef"
 
 [[package]]
 name = "pathdiff"
