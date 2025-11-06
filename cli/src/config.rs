@@ -162,7 +162,7 @@ fn path_is_match_with_or_without_home_tilde(
 }
 
 fn replace_home_with_tilde(path_string: impl AsRef<str>) -> Option<String> {
-    get_config_home_dir().ok().and_then(|home_path| {
+    get_home_dir().ok().and_then(|home_path| {
         let home_path_string = String::from(home_path.to_string_lossy());
         if path_string.as_ref().starts_with(&home_path_string) {
             return Some(path_string.as_ref().replacen(&home_path_string, "~", 1));

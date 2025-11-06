@@ -167,7 +167,7 @@ exit 0
             "/no-match-path",
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", "/home");
+        .env("HOME", "/home");
 
         let no_match_output = cmd.output().unwrap();
 
@@ -192,7 +192,7 @@ exit 0
             "/some/dir",
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", "/home");
+        .env("HOME", "/home");
 
         let initial_output = cmd.output().unwrap();
 
@@ -231,7 +231,7 @@ exit 0
             "/home/some/other/dir",
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", "/home")
+        .env("HOME", "/home")
         .envs(initial_env_vars.iter());
 
         let update_output = cmd.output().unwrap();
@@ -274,7 +274,7 @@ exit 0
             "/home/some/other/dir",
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", "/home")
+        .env("HOME", "/home")
         .envs(update_env_vars.iter());
 
         let no_update_output = cmd.output().unwrap();
@@ -301,7 +301,7 @@ exit 0
             "/",
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", "/home")
+        .env("HOME", "/home")
         .envs(update_env_vars.iter());
 
         let reset_output = cmd.output().unwrap();
@@ -333,7 +333,7 @@ exit 0
             &bin_dir.to_string_lossy(),
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", "/home");
+        .env("HOME", "/home");
 
         // nothing matching the pattern adjacent yet
         let pattern_adjacent_no_match_output =
@@ -378,7 +378,7 @@ exit 0
             &home_dir.path().to_string_lossy(),
         ])
         .env("PATH", &new_path)
-        .env("XDG_CONFIG_HOME", home_dir.path());
+        .env("HOME", home_dir.path());
 
         let awesometool_file = home_dir.path().join(".awesometool");
         fs::File::create_new(awesometool_file).unwrap();
