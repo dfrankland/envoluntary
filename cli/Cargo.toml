@@ -1,6 +1,6 @@
 [package]
 name = "envoluntary"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "Automatic Nix development environments for your shell"
 license = "MIT"
@@ -17,8 +17,8 @@ bstr.workspace = true
 clap.workspace = true
 config = "0.15.18"
 duct.workspace = true
-env-hooks = { path = "../env-hooks", version = "0.1.3" }
-nix-dev-env = { path = "../nix-dev-env", version = "0.1.3" }
+env-hooks = { path = "../env-hooks", version = "0.1.4" }
+nix-dev-env = { path = "../nix-dev-env", version = "0.1.4" }
 once_cell.workspace = true
 path-clean = "1.0.1"
 regex.workspace = true
