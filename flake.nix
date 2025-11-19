@@ -67,6 +67,7 @@
           individualCrateArgs
           // {
             pname = "envoluntary";
+            meta.mainProgram = "envoluntary";
             cargoExtraArgs = "-p envoluntary";
             src = fileSetForCrate;
           }
