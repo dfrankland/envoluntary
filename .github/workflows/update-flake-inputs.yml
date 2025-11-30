@@ -1,14 +1,25 @@
-name: Nix
+name: Update Flake Inputs
+
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sundays at 2 AM UTC
+  workflow_dispatch:  # Allow manual triggering
+
 jobs:
-  check_and_build:
+  update-flake-inputs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
 
       - uses: nixbuild/nix-quick-install-action@v30
@@ -39,7 +50,8 @@ jobs:
           # except any version with the key that is the same as the `primary-key`
           purge-primary-key: never
 
-      - run: nix flake check
-      - run: nix build
-      - run: nix develop -c echo OK
-      - run: nix flake archive
+      - name: Update flake inputs
+        uses: mic92/update-flake-inputs@main
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          auto-merge: 'true'
