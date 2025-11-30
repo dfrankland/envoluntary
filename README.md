@@ -115,6 +115,9 @@ Add `envoluntary` to your flake inputs:
     envoluntary = {
       url = "github:dfrankland/envoluntary";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+      # Or rust-overlay.follows = "rust-overlay";
+      # if you already use `rust-overlay` in your flake.nix
     };
   };
 
@@ -179,6 +182,9 @@ Add `envoluntary` to your flake inputs (if not already added):
       url = "github:dfrankland/envoluntary";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
+      inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+      # Or rust-overlay.follows = "rust-overlay";
+      # if you already use `rust-overlay` in your flake.nix
     };
   };
 
@@ -246,6 +252,9 @@ Add `envoluntary` to your flake inputs (if not already added):
     envoluntary = {
       url = "github:dfrankland/envoluntary";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+      # Or rust-overlay.follows = "rust-overlay";
+      # if you already use `rust-overlay` in your flake.nix
     };
   };
 
