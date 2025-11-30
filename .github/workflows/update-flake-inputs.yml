@@ -24,7 +24,7 @@ jobs:
 
       - uses: nixbuild/nix-quick-install-action@v30
         with:
-          nix_config: |
+          nix_conf: |
             keep-env-derivations = true
             keep-outputs = true
 
