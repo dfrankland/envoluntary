@@ -34,7 +34,7 @@
         craneLib = (inputs.crane.mkLib pkgs).overrideToolchain (
           p:
           # NB: use nightly for https://github.com/rust-lang/rustfmt/issues/6241
-            p.rust-bin.selectLatestNightlyWith (toolchain:
+            (inputs.rust-overlay.lib.mkRustBin {} p).selectLatestNightlyWith (toolchain:
               toolchain.default.override {
                 extensions = ["rust-src"] ++ pkgs.lib.optionals pkgs.stdenv.isLinux ["llvm-tools-preview"];
               })
@@ -81,14 +81,6 @@
           }
         );
       in {
-        _module.args.pkgs = import inputs.nixpkgs {
-          inherit system;
-          overlays = [
-            inputs.rust-overlay.overlays.default
-            inputs.devshell.overlays.default
-          ];
-        };
-
         checks = {
           inherit envoluntary envHooksExampleDirenv;
 
@@ -163,13 +155,14 @@
         };
 
         devShells.default = let
+          devshell = import "${inputs.devshell}/default.nix" {nixpkgs = pkgs;};
           devshellDevShell = craneLib.devShell.override {
             mkShell = {
               inputsFrom,
               packages,
             }:
-              pkgs.devshell.mkShell {
-                imports = [(pkgs.devshell.importTOML ./devshell.toml)];
+              devshell.mkShell {
+                imports = [(devshell.importTOML ./devshell.toml)];
                 packagesFrom = inputsFrom;
                 inherit packages;
               };
