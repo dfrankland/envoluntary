@@ -1,5 +1,5 @@
 [devshell]
-packages = ["alejandra", "cargo-release", "miniserve"]
+packages = ["alejandra", "cargo-release", "gcc", "miniserve"]
 
 [[commands]]
 name = "build-all"
