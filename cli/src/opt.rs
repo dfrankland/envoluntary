@@ -244,6 +244,8 @@ pub enum EnvoluntaryShell {
     Fish,
     /// JSON output format (useful for machine parsing).
     Json,
+    /// Nushell output format
+    Nushell,
     /// Z shell (zsh) syntax.
     Zsh,
 }
