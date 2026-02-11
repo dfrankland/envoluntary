@@ -165,6 +165,13 @@
                 imports = [(devshell.importTOML ./devshell.toml)];
                 packagesFrom = inputsFrom;
                 inherit packages;
+
+                env = [
+                  {
+                    name = "NIX_BIN_BASH";
+                    eval = "${pkgs.bash}/bin/bash";
+                  }
+                ];
               };
           };
         in
