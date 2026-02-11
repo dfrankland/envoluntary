@@ -166,7 +166,7 @@ pub enum EnvoluntaryShellCommands {
 pub struct EnvoluntaryShellHookArgs {
     /// The shell for which to generate the hook code.
     ///
-    /// The hook code syntax varies by shell (bash, fish, zsh).
+    /// The hook code syntax varies by shell
     pub shell: EnvoluntaryShell,
 }
 
@@ -175,7 +175,7 @@ pub struct EnvoluntaryShellHookArgs {
 pub struct EnvoluntaryShellExportArgs {
     /// The shell for which to generate export code.
     ///
-    /// The export syntax varies by shell (bash, fish, zsh, or JSON).
+    /// The export syntax varies by shell
     pub shell: EnvoluntaryShell,
 
     /// Path to the configuration file (overrides default location).

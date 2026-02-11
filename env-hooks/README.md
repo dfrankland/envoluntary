@@ -2,11 +2,11 @@
 
 Shell integration library for building direnv-like utilities. Provides direnv
 core logic for shell-agnostic management of the state of environment variable
-exporting and unsetting across different shell types (bash, zsh, fish).
+exporting and unsetting across different shell types (bash, zsh, fish, Nushell).
 
 ## Features
 
-- **Multi-shell support**: Works with bash, zsh, and fish shells
+- **Multi-shell support**: Works with bash, zsh, fish, and Nushell shells
 - **Environment state management**: Manages the export and unset state of
   environment variables, essential for direnv-like functionality
 - **JSON output**: Can export environment variables in JSON format for
@@ -19,7 +19,7 @@ For a practical example of using `env-hooks`, see the [direnv example](https://g
 It's a simplified implementation of `direnv` that demonstrates the core
 functionality of this library:
 
-- Hooks into bash, zsh, and fish shells
+- Hooks into bash, zsh, fish, and Nushell shells
 - Reads `.envrc` files by walking up the directory hierarchy
 - Exports environment variables from those files
 

@@ -23,7 +23,7 @@ graph TD
 - **Pattern-based matching**: Define directory patterns once in your config, get
   automatic environment loading everywhere
 - **Flake-native**: Built for Nix flakes from the ground up
-- **Shell agnostic**: Works with bash, zsh, and fish
+- **Shell agnostic**: Works with bash, zsh, fish, and Nushell.
 - **Fast caching**: Profiles are cached and only rebuilt when needed
 - **Zero per-project setup**: No `.envrc` files to commit or maintain
 
@@ -41,7 +41,7 @@ graph TD
    nix shell github:dfrankland/envoluntary -c envoluntary --help
    ```
 
-2. **Add the shell hook** to your `.bashrc`, `.zshrc`, or `config.fish`:
+2. **Add the shell hook** to your `.bashrc`, `.zshrc`, `config.fish`, or `config.nu`:
 
    ```bash
    # Bash/Zsh
@@ -49,6 +49,9 @@ graph TD
 
    # Fish
    envoluntary shell hook fish | source
+
+   # Nushell
+   envoluntary shell hook nushell # copy output into config.nu
    ```
 
    Or use via Nix shell
@@ -205,6 +208,7 @@ home-manager.users.your-username = {
     enableBashIntegration = true;
     enableZshIntegration = true;
     enableFishIntegration = true;
+    enableNushellIntegration = true;
 
     # Optional: provide envoluntary configuration
     config = {
