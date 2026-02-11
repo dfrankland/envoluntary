@@ -2,6 +2,18 @@
 packages = ["alejandra", "cargo-release", "gcc", "miniserve"]
 
 [[commands]]
+name = "shell-export"
+category = "running"
+help = "Test 'envoluntary shell export <shell>'"
+command = "cargo run -- shell export $1"
+
+[[commands]]
+name = "shell-hook"
+category = "running"
+help = "Test 'envoluntary shell hook <shell>'"
+command = "cargo run -- shell hook $1"
+
+[[commands]]
 name = "build-all"
 category = "building"
 help = "Build the project"
