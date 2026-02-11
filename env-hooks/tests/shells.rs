@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use bstr::ByteSlice;
 use env_hooks::{
     EnvVarsState,
-    shells::{bash, fish, json, zsh},
+    shells::{bash, fish, json, nushell, zsh},
 };
 use once_cell::sync::Lazy;
 
@@ -85,6 +85,24 @@ fn zsh_export_set_unset_and_special_vars() {
 #[test]
 fn zsh_hook_templated() {
     let result = zsh::hook("myapp", "myapp export zsh").to_string();
+    assert!(!result.contains("{{."));
+}
+
+#[test]
+fn nushell_export_set_unset_and_special_vars() {
+    assert_eq!(nushell::export(EnvVarsState::new()).to_str().unwrap(), "{}");
+
+    let result = nushell::export(TEST_ENV_VARS.clone()).to_string();
+
+    assert_eq!(
+        result,
+        "{\"SIMPLE\":\"value\",\"TO_REMOVE\":null,\"WITH_SPACES\":\"value with spaces\",\"DOLLAR\":\"$VAR\",\"EMPTY\":\"\",\"PATH\":\"/usr/bin:/usr/local/bin\",\"VAR123\":\"numeric\",\"_PRIVATE\":\"private\",\"MULTI_LINE_VAR\":\"\\nHello,\\nWorld!\\n\"}",
+    );
+}
+
+#[test]
+fn nushell_hook_templated() {
+    let result = nushell::hook("myapp export nushell").to_string();
     assert!(!result.contains("{{."));
 }
 
