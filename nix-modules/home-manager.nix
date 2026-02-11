@@ -37,6 +37,7 @@ in {
     enableBashIntegration = lib.hm.shell.mkBashIntegrationOption {inherit config;};
     enableZshIntegration = lib.hm.shell.mkZshIntegrationOption {inherit config;};
     enableFishIntegration = lib.hm.shell.mkFishIntegrationOption {inherit config;};
+    enableNushellIntegration = lib.hm.shell.mkNushellIntegrationOption {inherit config;};
   };
 
   config = mkIf cfg.enable {
@@ -58,6 +59,22 @@ in {
           ${getExe cfg.package} shell hook fish | source
         ''
       );
+
+      # Note: Nushell doesn't support eval-style statements, so hook
+      # code must be reproduced manually
+      nushell.extraConfig = mkIf cfg.enableNushellIntegration ''
+        $env.config.hooks.env_change.PWD = (
+          $env.config.hooks.env_change | get --optional PWD | default [] | append { ||
+            ${getExe cfg.package} shell export nushell | from json | default {} | load-env
+          }
+        )
+
+        $env.config.hooks.pre_execution = (
+          $env.config.hooks.pre_execution | append { ||
+            ${getExe cfg.package} shell export nushell | from json | default {} | load-env
+          }
+        )
+      '';
 
       zsh.initContent = mkIf cfg.enableZshIntegration ''
         eval "$(${getExe cfg.package} shell hook zsh)"
