@@ -143,7 +143,11 @@ impl NixProfileCache {
         args.extend_from_slice(&[
             "--json",
             "--no-write-lock-file",
-            &self.flake_reference.flake_reference_string,
+            self.flake_reference
+                .flake_reference_string
+                .rsplit_once('#')
+                .map(|(flake_reference_without_hash, ..)| flake_reference_without_hash)
+                .unwrap_or(&self.flake_reference.flake_reference_string),
         ]);
         let stdout_content = nix_command::nix(args)?;
         let json = serde_json::from_str::<Value>(&stdout_content)?;
