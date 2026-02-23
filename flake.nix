@@ -177,7 +177,7 @@
         in
           devshellDevShell {
             checks = inputs.self.checks.${system};
-            packages = [];
+            packages = pkgs.lib.optionals pkgs.stdenv.isLinux [pkgs.gcc];
           };
       };
       flake = {

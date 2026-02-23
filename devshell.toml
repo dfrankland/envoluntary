@@ -1,5 +1,5 @@
 [devshell]
-packages = ["alejandra", "cargo-release", "gcc", "miniserve"]
+packages = ["alejandra", "cargo-release", "miniserve"]
 
 [[commands]]
 name = "shell-export"
