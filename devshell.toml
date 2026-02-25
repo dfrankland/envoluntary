@@ -1,5 +1,12 @@
 [devshell]
-packages = ["alejandra", "cargo-release", "miniserve"]
+packages = ["alejandra", "bacon", "cargo-release", "miniserve"]
+motd = """
+{202}🔨 Welcome to devshell{reset}
+$(type -p menu &>/dev/null && menu)
+
+Check out 🥓 "bacon --list-jobs" for watch 👀 commands e.g.
+    bacon shell-hook -- nushell
+"""
 
 [[commands]]
 name = "shell-export"
@@ -72,5 +79,5 @@ command = """\
   alejandra .; \
   cargo clippy --fix --allow-dirty; \
   cargo fmt; \
-  taplo fmt devshell.toml Cargo.toml "*/Cargo.toml"; \
+  taplo fmt bacon.toml devshell.toml Cargo.toml "*/Cargo.toml"; \
 """

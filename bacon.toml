@@ -1,0 +1,63 @@
+#:schema https://dystroy.org/bacon/.bacon.schema.json
+
+default_job = "check"
+env.CARGO_TERM_COLOR = "always"
+
+[jobs.shell-export]
+command = ["shell-export"]
+need_stdout = true
+
+[jobs.shell-hook]
+command = ["shell-hook"]
+need_stdout = true
+
+[jobs.check]
+command = ["cargo", "check"]
+need_stdout = false
+
+[jobs.check-all]
+command = ["check-all"]
+need_stdout = false
+
+# Run clippy on the default target
+[jobs.clippy]
+command = ["cargo", "clippy"]
+need_stdout = false
+
+[jobs.clippy-all]
+command = ["cargo", "clippy", "--all-targets"]
+need_stdout = false
+
+# This job lets you run
+# - all tests: bacon test
+# - a specific test: bacon test -- config::test_default_files
+# - the tests of a package: bacon test -- -- -p config
+[jobs.test]
+command = [
+  "cargo",
+  "nextest",
+  "run",
+  "--hide-progress-bar",
+  "--failure-output",
+  "final",
+]
+need_stdout = true
+analyzer = "nextest"
+
+[jobs.doc]
+command = ["cargo", "doc", "--no-deps"]
+need_stdout = false
+
+# If the doc compiles, then it opens in your browser and bacon switches
+# to the previous job
+# Note - don't run this standalone, or you may end up opening a lot of browser tabs :D
+[jobs.doc-open]
+command = ["cargo", "doc", "--no-deps", "--open"]
+need_stdout = false
+on_success = "back"                               # so that we don't open the browser at each change
+
+[keybindings]
+d = "job:doc"
+shift-d = "job:doc-open"
+c = "job:clippy-all"     # comment this to have 'c' run clippy on only the default target
+p = "job:pedantic"
