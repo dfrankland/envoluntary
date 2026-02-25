@@ -5,25 +5,44 @@ use env_hooks::{BashSource, EnvVars, get_env_vars_from_bash};
 use predicates::prelude::*;
 use sha1::{Digest, Sha1};
 
-#[test]
-fn shell_hook_bash_produces_evaluable_shell_syntax() {
+fn test_evaluable_syntax(shell_name: &str, shell_cmd: &str) {
     let mut cmd = Command::new(cargo::cargo_bin!());
-    cmd.args(["shell", "hook", "bash"]);
+    cmd.args(["shell", "hook", shell_name]);
 
     let export_output = cmd.output().unwrap();
     assert!(export_output.status.success());
 
-    let bash_script = String::from_utf8_lossy(&export_output.stdout);
+    let script = String::from_utf8_lossy(&export_output.stdout);
 
-    assert!(!bash_script.contains("{{."));
+    assert!(!script.contains("{{."));
 
-    let bash_export = process::Command::new("bash")
+    let export = process::Command::new(shell_cmd)
         .arg("-c")
-        .arg(bash_script.as_ref())
+        .arg(script.as_ref())
         .output()
         .unwrap();
 
-    assert!(bash_export.status.success());
+    assert!(export.status.success());
+}
+
+#[test]
+fn shell_hook_bash_produces_evaluable_shell_syntax() {
+    test_evaluable_syntax("bash", "bash");
+}
+
+#[test]
+fn shell_hook_fish_produces_evaluable_shell_syntax() {
+    test_evaluable_syntax("fish", "fish");
+}
+
+#[test]
+fn shell_hook_nu_produces_evaluable_shell_syntax() {
+    test_evaluable_syntax("nushell", "nu");
+}
+
+#[test]
+fn shell_hook_zsh_produces_evaluable_shell_syntax() {
+    test_evaluable_syntax("zsh", "zsh");
 }
 
 #[test]
