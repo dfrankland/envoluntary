@@ -100,10 +100,136 @@ exit 0
 }
 
 #[test]
-fn test_shell_export_state_init_update_and_reset() {
+fn test_bash_export_state_init_update_and_reset() {
     let work_dir = tempfile::tempdir().unwrap();
     let cache_dir = tempfile::tempdir_in(work_dir.path()).unwrap();
-    let config_file = work_dir.path().join("config.toml");
+
+    // 1. Setup mock environment
+    let config_file = setup_mock_config(work_dir.path());
+    let bin_dir = setup_mock_nix_bin(work_dir.path());
+
+    let original_path = env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{}", bin_dir.display(), original_path);
+
+    // 2. Helper closure to run the shell export command
+    let run_export = |current_dir: &str, home_dir: &str, env_vars: Option<&EnvVars>| -> String {
+        let mut cmd = Command::new(cargo::cargo_bin!());
+        cmd.args([
+            "shell",
+            "export",
+            "bash",
+            "--config-path",
+            &config_file.to_string_lossy(),
+            "--cache-dir",
+            &cache_dir.path().to_string_lossy(),
+            "--current-dir",
+            current_dir,
+        ])
+        .env("PATH", &new_path)
+        .env("HOME", home_dir);
+
+        if let Some(envs) = env_vars {
+            cmd.envs(envs.iter());
+        }
+
+        let output = cmd.output().unwrap();
+        assert!(
+            output.status.success(),
+            "Command failed in dir: {}",
+            current_dir
+        );
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    };
+
+    // --- TEST CASES ---
+
+    // Case 1: No matching path
+    let no_match_out = run_export("/no-match-path", "/home", None);
+    assert_eq!(no_match_out, "");
+
+    // Case 2: Initial export
+    let initial_export = run_export("/some/dir", "/home", None);
+    assert_output_lines(
+        &initial_export,
+        &[
+            "export FAKE_VAR=true;",
+            "export ENVOLUNTARY_ENV_STATE=KLUv/QQ4dQMArAYAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9yZXBvIl0sImVudl92YXJzX3Jlc2V0Ijp7IkZBS0VfVkFSIjpudWxsLCJFTlZPTFVOVEFSWV9FTlZfU1RBVEUiOm51bGx9fQCbvTM7;",
+        ],
+    );
+
+    // Case 3: Update state
+    let initial_env_vars = get_env_vars_from_bash(
+        BashSource::Script(initial_export.into()),
+        Some(EnvVars::from_iter([("PATH".to_string(), new_path.clone())])),
+    )
+    .unwrap();
+
+    let update_export = run_export("/home/some/other/dir", "/home", Some(&initial_env_vars));
+    assert_output_lines(
+        &update_export,
+        &[
+            "unset FAKE_VAR;",
+            "unset ENVOLUNTARY_ENV_STATE;",
+            "export FAKE_VAR=true;",
+            "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4HQQAHAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1YjpvdGhlcl9fb3duZXIvcmVwbyJdLCJlbnZfdmFyc19yZXNldCI6eyJGQUtFX1ZBUiI6bnVsbCwiRU5WT0xVTlRBUllfRU5WX1NUQVRFIjpudWxsfX0BqBDj//0Qww8Qow+DMUZWbCwq';",
+        ],
+    );
+
+    // Case 4: No update needed
+    let update_env_vars = get_env_vars_from_bash(
+        BashSource::Script(update_export.into()),
+        Some(EnvVars::from_iter([("PATH".to_string(), new_path.clone())])),
+    )
+    .unwrap();
+
+    let no_update_export = run_export("/home/some/other/dir", "/home", Some(&update_env_vars));
+    assert_eq!(no_update_export, "");
+
+    // Case 5: Reset state
+    let reset_export = run_export("/", "/home", Some(&update_env_vars));
+    assert_output_lines(
+        &reset_export,
+        &["unset FAKE_VAR;", "unset ENVOLUNTARY_ENV_STATE;"],
+    );
+
+    // Case 6: Adjacent pattern matching
+    let pattern_adjacent_no_match = run_export(&bin_dir.to_string_lossy(), "/home", None);
+    assert_eq!(pattern_adjacent_no_match, "");
+
+    fs::File::create_new(work_dir.path().join(".supercooltool")).unwrap();
+    let pattern_adjacent_match = run_export(&bin_dir.to_string_lossy(), "/home", None);
+    assert_output_lines(
+        &pattern_adjacent_match,
+        &[
+            "export FAKE_VAR=true;",
+            "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4zQMAXAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9zdXBlcl9jb29sX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19ACCjTjk=';",
+        ],
+    );
+
+    // Case 7: Home directory adjacent pattern
+    let home_dir = tempfile::tempdir().unwrap();
+    let home_path = home_dir.path().to_string_lossy();
+    fs::File::create_new(home_dir.path().join(".awesometool")).unwrap();
+
+    let pattern_adjacent_home_export = run_export(&home_path, &home_path, None);
+    assert_output_lines(
+        &pattern_adjacent_home_export,
+        &[
+            "export FAKE_VAR=true;",
+            "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4tQMALAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9hd2Vzb21lX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19AB6hxkc=';",
+        ],
+    );
+}
+
+// --- HELPERS ---
+
+fn assert_output_lines(output: &str, expected: &[&str]) {
+    let lines: Vec<_> = output.split('\n').filter(|s| !s.is_empty()).collect();
+    assert_eq!(lines, expected);
+}
+
+fn setup_mock_config(work_dir: &std::path::Path) -> std::path::PathBuf {
+    let config_file = work_dir.join("config.toml");
     fs::write(
         &config_file,
         toml::to_string_pretty(&toml::toml! {
@@ -128,12 +254,17 @@ fn test_shell_export_state_init_update_and_reset() {
         .unwrap(),
     )
     .unwrap();
-    let bin_dir = work_dir.path().join("bin");
+    config_file
+}
+
+fn setup_mock_nix_bin(work_dir: &std::path::Path) -> std::path::PathBuf {
+    let bin_dir = work_dir.join("bin");
     fs::create_dir(&bin_dir).unwrap();
     let nix_file = bin_dir.join("nix");
 
     let bash_path = env::var("NIX_BIN_BASH").unwrap_or_else(|_| String::from("/bin/bash"));
     let profile_rc_content = "export FAKE_VAR=true;";
+
     let nix_file_content = format!(
         r#"#! {bash_path}
 
@@ -166,259 +297,8 @@ fi
 exit 0
 "#
     );
+
     fs::write(&nix_file, nix_file_content).unwrap();
     fs::set_permissions(&nix_file, fs::Permissions::from_mode(0o755)).unwrap();
-
-    let original_path = env::var("PATH").unwrap_or_default();
-    let new_path = format!("{}:{}", bin_dir.display(), original_path);
-
-    {
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            "/no-match-path",
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", "/home");
-
-        let no_match_output = cmd.output().unwrap();
-
-        assert!(no_match_output.status.success());
-
-        let no_match_shell_export = String::from_utf8_lossy(&no_match_output.stdout);
-
-        assert_eq!(no_match_shell_export, "");
-    }
-
-    let initial_shell_export = {
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            "/some/dir",
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", "/home");
-
-        let initial_output = cmd.output().unwrap();
-
-        assert!(initial_output.status.success());
-
-        String::from(String::from_utf8_lossy(&initial_output.stdout))
-    };
-
-    assert_eq!(
-        initial_shell_export
-            .split('\n')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>(),
-        vec![
-            "export FAKE_VAR=true;",
-            "export ENVOLUNTARY_ENV_STATE=KLUv/QQ4dQMArAYAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9yZXBvIl0sImVudl92YXJzX3Jlc2V0Ijp7IkZBS0VfVkFSIjpudWxsLCJFTlZPTFVOVEFSWV9FTlZfU1RBVEUiOm51bGx9fQCbvTM7;",
-        ]
-    );
-
-    let update_shell_export = {
-        let initial_env_vars = get_env_vars_from_bash(
-            BashSource::Script(initial_shell_export.into()),
-            Some(EnvVars::from_iter([("PATH".to_string(), new_path.clone())])),
-        )
-        .unwrap();
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            "/home/some/other/dir",
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", "/home")
-        .envs(initial_env_vars.iter());
-
-        let update_output = cmd.output().unwrap();
-
-        assert!(update_output.status.success());
-
-        String::from(String::from_utf8_lossy(&update_output.stdout))
-    };
-
-    assert_eq!(
-        update_shell_export
-            .split('\n')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>(),
-        vec![
-            "unset FAKE_VAR;",
-            "unset ENVOLUNTARY_ENV_STATE;",
-            "export FAKE_VAR=true;",
-            "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4HQQAHAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1YjpvdGhlcl9fb3duZXIvcmVwbyJdLCJlbnZfdmFyc19yZXNldCI6eyJGQUtFX1ZBUiI6bnVsbCwiRU5WT0xVTlRBUllfRU5WX1NUQVRFIjpudWxsfX0BqBDj//0Qww8Qow+DMUZWbCwq';"
-        ]
-    );
-
-    let update_env_vars = get_env_vars_from_bash(
-        BashSource::Script(update_shell_export.into()),
-        Some(EnvVars::from_iter([("PATH".to_string(), new_path.clone())])),
-    )
-    .unwrap();
-
-    {
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            "/home/some/other/dir",
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", "/home")
-        .envs(update_env_vars.iter());
-
-        let no_update_output = cmd.output().unwrap();
-
-        assert!(no_update_output.status.success());
-
-        let no_update_shell_export =
-            String::from(String::from_utf8_lossy(&no_update_output.stdout));
-
-        assert_eq!(no_update_shell_export, "");
-    }
-
-    let reset_shell_export = {
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            "/",
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", "/home")
-        .envs(update_env_vars.iter());
-
-        let reset_output = cmd.output().unwrap();
-
-        assert!(reset_output.status.success());
-
-        String::from(String::from_utf8_lossy(&reset_output.stdout))
-    };
-
-    assert_eq!(
-        reset_shell_export
-            .split('\n')
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>(),
-        vec!["unset FAKE_VAR;", "unset ENVOLUNTARY_ENV_STATE;"]
-    );
-
-    {
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            &bin_dir.to_string_lossy(),
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", "/home");
-
-        // nothing matching the pattern adjacent yet
-        let pattern_adjacent_no_match_output =
-            String::from(String::from_utf8_lossy(&cmd.output().unwrap().stdout));
-        assert_eq!(pattern_adjacent_no_match_output, "");
-
-        // create a file that matches the pattern adjacent, in the parent directory
-        let supercooltool_file = work_dir.path().join(".supercooltool");
-        fs::File::create_new(supercooltool_file).unwrap();
-
-        let pattern_adjacent_output = cmd.output().unwrap();
-
-        assert!(pattern_adjacent_output.status.success());
-
-        let pattern_adjacent_export =
-            String::from(String::from_utf8_lossy(&pattern_adjacent_output.stdout));
-
-        assert_eq!(
-            pattern_adjacent_export
-                .split('\n')
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>(),
-            vec![
-                "export FAKE_VAR=true;",
-                "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4zQMAXAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9zdXBlcl9jb29sX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19ACCjTjk=';",
-            ]
-        );
-    }
-
-    {
-        let home_dir = tempfile::tempdir().unwrap();
-        let mut cmd = Command::new(cargo::cargo_bin!());
-        cmd.args([
-            "shell",
-            "export",
-            "bash",
-            "--config-path",
-            &config_file.to_string_lossy(),
-            "--cache-dir",
-            &cache_dir.path().to_string_lossy(),
-            "--current-dir",
-            &home_dir.path().to_string_lossy(),
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", home_dir.path());
-
-        let awesometool_file = home_dir.path().join(".awesometool");
-        fs::File::create_new(awesometool_file).unwrap();
-
-        let pattern_adjacent_home_dir_output = cmd.output().unwrap();
-
-        assert!(pattern_adjacent_home_dir_output.status.success());
-
-        let pattern_adjacent_home_dir_export = String::from(String::from_utf8_lossy(
-            &pattern_adjacent_home_dir_output.stdout,
-        ));
-
-        assert_eq!(
-            pattern_adjacent_home_dir_export
-                .split('\n')
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>(),
-            vec![
-                "export FAKE_VAR=true;",
-                "export ENVOLUNTARY_ENV_STATE=$'KLUv/QQ4tQMALAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9hd2Vzb21lX3Rvb2wiXSwiZW52X3ZhcnNfcmVzZXQiOnsiRkFLRV9WQVIiOm51bGwsIkVOVk9MVU5UQVJZX0VOVl9TVEFURSI6bnVsbH19AB6hxkc=';",
-            ]
-        );
-    }
+    bin_dir
 }
