@@ -1,6 +1,6 @@
 use std::{fs, process::Output};
 
-use assert_cmd::Command;
+use assert_cmd::{Command, cargo};
 
 pub mod common;
 use common::{Fixtures, build_fixtures};
@@ -19,7 +19,8 @@ if ($invalid | length) > 0 {
 
 fn load_nu_env_string(test_vals: &Fixtures, current_dir: &str) -> String {
     format!(
-        "envoluntary shell export nushell --config-path {config_path} --cache-dir {cache_dir} --current-dir {current_dir} | from json --objects | default {{}} | reduce --fold {{}} {{|row, acc| $acc | merge $row}} | load-env",
+        "{cargo_bin} shell export nushell --config-path {config_path} --cache-dir {cache_dir} --current-dir {current_dir} | from json --objects | default {{}} | reduce --fold {{}} {{|row, acc| $acc | merge $row}} | load-env",
+        cargo_bin = cargo::cargo_bin!().to_string_lossy(),
         config_path = &test_vals.config_file.to_string_lossy(),
         cache_dir = &test_vals.cache_dir.path().to_string_lossy(),
         current_dir = current_dir
