@@ -65,13 +65,7 @@ in {
       nushell.extraConfig = mkIf cfg.enableNushellIntegration ''
         $env.config.hooks.env_change.PWD = (
           $env.config.hooks.env_change | get --optional PWD | default [] | append { ||
-            ${getExe cfg.package} shell export nushell | from json | default {} | load-env
-          }
-        )
-
-        $env.config.hooks.pre_execution = (
-          $env.config.hooks.pre_execution | append { ||
-            ${getExe cfg.package} shell export nushell | from json | default {} | load-env
+            ${getExe cfg.package} shell export nushell | from json --objects | default {} | reduce --fold {} {|row, acc| $acc | merge $row} | load-env
           }
         )
       '';

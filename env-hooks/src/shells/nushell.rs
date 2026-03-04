@@ -5,7 +5,7 @@ use crate::EnvVarsState;
 const NUSHELL_HOOK: &str = r#"
 $env.config.hooks.env_change.PWD = (
     $env.config.hooks.env_change | get --optional PWD | default [] | append { ||
-        {{.ExportCommand}} | from json --objects | default {} | reduce --fold {} {|row, acc| $acc | merge $row}
+        {{.ExportCommand}} | from json --objects | default {} | reduce --fold {} {|row, acc| $acc | merge $row} | load-env
     }
 )
 "#;
