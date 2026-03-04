@@ -1,6 +1,7 @@
 use std::{
     env, fs,
     os::unix::fs::PermissionsExt,
+    path::PathBuf,
     process::{self, Output},
 };
 
@@ -8,6 +9,7 @@ use assert_cmd::{Command, cargo};
 use env_hooks::{BashSource, EnvVars, get_env_vars_from_bash};
 use predicates::prelude::*;
 use sha1::{Digest, Sha1};
+use tempfile::TempDir;
 
 fn test_evaluable_syntax(shell_name: &str, shell_cmd: &str) {
     let mut cmd = Command::new(cargo::cargo_bin!());
@@ -41,8 +43,15 @@ if ($invalid | length) > 0 {
 }
 "#;
 
-#[test]
-fn test_nushell_export_state_init_update_and_reset() {
+struct TestVals {
+    pub work_dir: TempDir,
+    pub cache_dir: TempDir,
+    pub config_file: PathBuf,
+    pub bin_dir: PathBuf,
+    pub path: String,
+}
+
+fn build_test_vals() -> TestVals {
     let work_dir = tempfile::tempdir().unwrap();
     let cache_dir = tempfile::tempdir_in(work_dir.path()).unwrap();
 
@@ -51,61 +60,70 @@ fn test_nushell_export_state_init_update_and_reset() {
 
     let original_path = env::var("PATH").unwrap_or_default();
     let new_path = format!("{}:{}", bin_dir.display(), original_path);
+    TestVals {
+        work_dir,
+        cache_dir,
+        config_file,
+        bin_dir,
+        path: new_path,
+    }
+}
 
-    let load_nu_env_string = |current_dir: &str| -> String {
-        format!(
+fn load_nu_env_string(test_vals: &TestVals, current_dir: &str) -> String {
+    format!(
             "envoluntary shell export nushell --config-path {config_path} --cache-dir {cache_dir} --current-dir {current_dir} | from json --objects | default {{}} | reduce --fold {{}} {{|row, acc| $acc | merge $row}}
  | load-env",
-            config_path = &config_file.to_string_lossy(),
-            cache_dir = &cache_dir.path().to_string_lossy(),
+            config_path = &test_vals.config_file.to_string_lossy(),
+            cache_dir = &test_vals.cache_dir.path().to_string_lossy(),
             current_dir = current_dir
         )
-    };
-    let export_and_check = |current_dir: &str,
-                            home_dir: &str,
-                            env_vars: Option<&EnvVars>,
-                            extra_script: Option<&str>,
-                            expected_env: &serde_json::Value|
-     -> Output {
-        let mut cmd = Command::new("nu");
-        let env_check_script =
-            NUSHELL_ENV_CHECK.replace("{{.JsonBlob}}", &expected_env.to_string());
-        let script = if let Some(ext_script) = extra_script {
-            ext_script.to_owned() + ";\n" + &env_check_script
-        } else {
-            env_check_script
-        };
-        cmd.args([
-            "-c",
-            &format!(
-                "{load_env};\n{script}",
-                load_env = load_nu_env_string(current_dir),
-                script = script
-            ),
-        ])
-        .env("PATH", &new_path)
-        .env("HOME", home_dir);
+}
 
-        if let Some(envs) = env_vars {
-            cmd.envs(envs.iter());
-        }
-
-        let output = cmd.output().unwrap();
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        output
+fn export_and_check(
+    test_vals: &TestVals,
+    current_dir: &str,
+    home_dir: &str,
+    extra_script: Option<&str>,
+    expected_env: &serde_json::Value,
+) -> Output {
+    let mut cmd = Command::new("nu");
+    let env_check_script = NUSHELL_ENV_CHECK.replace("{{.JsonBlob}}", &expected_env.to_string());
+    let script = if let Some(ext_script) = extra_script {
+        ext_script.to_owned() + ";\n" + &env_check_script
+    } else {
+        env_check_script
     };
+    cmd.args([
+        "-c",
+        &format!(
+            "{load_env};\n{script}",
+            load_env = load_nu_env_string(&test_vals, current_dir),
+            script = script
+        ),
+    ])
+    .env("PATH", &test_vals.path)
+    .env("HOME", home_dir);
+
+    let output = cmd.output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    output
+}
+
+#[test]
+fn test_nushell_export_state_init_update_and_reset() {
+    let test_vals = build_test_vals();
 
     // --- TEST CASES ---
 
     // Case 1: No matching path
     export_and_check(
+        &test_vals,
         "/no-match-path",
         "/home",
-        None,
         None,
         &serde_json::json!({
             "FAKE_VAR": null,
@@ -118,7 +136,7 @@ fn test_nushell_export_state_init_update_and_reset() {
         "FAKE_VAR": "true",
         "ENVOLUNTARY_ENV_STATE": "KLUv/QQ4dQMArAYAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9yZXBvIl0sImVudl92YXJzX3Jlc2V0Ijp7IkZBS0VfVkFSIjpudWxsLCJFTlZPTFVOVEFSWV9FTlZfU1RBVEUiOm51bGx9fQCbvTM7"
     });
-    export_and_check("/some/dir", "/home", None, None, expected_json);
+    export_and_check(&test_vals, "/some/dir", "/home", None, expected_json);
 
     // // Case 3: Update state
     let expected_update_json = &serde_json::json!({
@@ -127,45 +145,45 @@ fn test_nushell_export_state_init_update_and_reset() {
     });
 
     export_and_check(
+        &test_vals,
         "/some/dir",
         "/home",
-        None,
-        Some(&load_nu_env_string("/home/some/other/dir")),
+        Some(&load_nu_env_string(&test_vals, "/home/some/other/dir")),
         expected_update_json,
     );
 
     // Case 4: Export in a dir, re-export in same dir
     export_and_check(
+        &test_vals,
         "/home/some/other/dir",
         "/home",
-        None,
-        Some(&load_nu_env_string("/home/some/other/dir")),
+        Some(&load_nu_env_string(&test_vals, "/home/some/other/dir")),
         &serde_json::json!({}),
     );
 
     // Case 5: Reset state
     export_and_check(
+        &test_vals,
         "/home/some/other/dir",
         "/home",
-        None,
-        Some(&load_nu_env_string("/")),
+        Some(&load_nu_env_string(&test_vals, "/")),
         &serde_json::json!({ "ENVOLUNTARY_ENV_STATE": null }),
     );
 
     // Case 6: Adjacent pattern matching
     export_and_check(
-        &bin_dir.to_string_lossy(),
+        &test_vals,
+        &test_vals.bin_dir.to_string_lossy(),
         "/home",
-        None,
         None,
         &serde_json::json!({ "ENVOLUNTARY_ENV_STATE": null }),
     );
 
-    fs::File::create_new(work_dir.path().join(".supercooltool")).unwrap();
+    fs::File::create_new(test_vals.work_dir.path().join(".supercooltool")).unwrap();
     export_and_check(
-        &bin_dir.to_string_lossy(),
+        &test_vals,
+        &test_vals.bin_dir.to_string_lossy(),
         "/home",
-        None,
         None,
         &serde_json::json!({
             "FAKE_VAR": "true",
@@ -179,9 +197,9 @@ fn test_nushell_export_state_init_update_and_reset() {
     fs::File::create_new(home_dir.path().join(".awesometool")).unwrap();
 
     export_and_check(
+        &test_vals,
         &home_path,
         &home_path,
-        None,
         None,
         &serde_json::json!({
             "FAKE_VAR": "true",
