@@ -116,10 +116,8 @@ fn test_update_existing_state() {
         "ENVOLUNTARY_ENV_STATE": "KLUv/QQ4HQQAHAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1YjpvdGhlcl9fb3duZXIvcmVwbyJdLCJlbnZfdmFyc19yZXNldCI6eyJGQUtFX1ZBUiI6bnVsbCwiRU5WT0xVTlRBUllfRU5WX1NUQVRFIjpudWxsfX0BqBDj//0Qww8Qow+DMUZWbCwq",
     });
 
-    let test_vals = build_fixtures();
     export_and_check(&Inputs {
         previous_dir: Some("/home/some/other/dir".to_string()),
-        fixtures: Some(&test_vals),
         ..Inputs::new("/some/dir", expected_update_json)
     });
 }
@@ -131,20 +129,16 @@ fn test_export_twice_in_same_dir() {
         "ENVOLUNTARY_ENV_STATE": "KLUv/QQ4HQQAHAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1YjpvdGhlcl9fb3duZXIvcmVwbyJdLCJlbnZfdmFyc19yZXNldCI6eyJGQUtFX1ZBUiI6bnVsbCwiRU5WT0xVTlRBUllfRU5WX1NUQVRFIjpudWxsfX0BqBDj//0Qww8Qow+DMUZWbCwq",
     });
 
-    let test_vals = build_fixtures();
     export_and_check(&Inputs {
         previous_dir: Some("/home/some/other/dir".to_string()),
-        fixtures: Some(&test_vals),
         ..Inputs::new("/home/some/other/dir", expected_update_json)
     });
 }
 
 #[test]
 fn test_reset_state() {
-    let test_vals = build_fixtures();
     export_and_check(&Inputs {
         previous_dir: Some("/".to_string()),
-        fixtures: Some(&test_vals),
         ..Inputs::new(
             "/home/some/other/dir",
             serde_json::json!({"ENVOLUNTARY_ENV_STATE": null}),
