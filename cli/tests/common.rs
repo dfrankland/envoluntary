@@ -2,7 +2,7 @@ use std::{env, fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 use tempfile::TempDir;
 
-pub struct TestVals {
+pub struct Fixtures {
     pub work_dir: TempDir,
     pub cache_dir: TempDir,
     pub config_file: PathBuf,
@@ -10,7 +10,7 @@ pub struct TestVals {
     pub path: String,
 }
 
-pub fn build_test_vals() -> TestVals {
+pub fn build_fixtures() -> Fixtures {
     let work_dir = tempfile::tempdir().unwrap();
     let cache_dir = tempfile::tempdir_in(work_dir.path()).unwrap();
 
@@ -19,7 +19,7 @@ pub fn build_test_vals() -> TestVals {
 
     let original_path = env::var("PATH").unwrap_or_default();
     let new_path = format!("{}:{}", bin_dir.display(), original_path);
-    TestVals {
+    Fixtures {
         work_dir,
         cache_dir,
         config_file,
