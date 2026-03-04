@@ -87,12 +87,7 @@ fn export_and_check(inputs: &Inputs) -> Output {
 }
 
 #[test]
-fn test_nushell_export_state_init_update_and_reset() {
-    let test_vals = build_test_vals();
-
-    // --- TEST CASES ---
-
-    // Case 1: No matching path
+fn test_no_matching_path() {
     export_and_check(&Inputs::new(
         "/no-match-path",
         serde_json::json!({
@@ -100,41 +95,57 @@ fn test_nushell_export_state_init_update_and_reset() {
             "ENVOLUNTARY_ENV_STATE": null,
         }),
     ));
+}
 
-    // Case 2: Initial export
+#[test]
+fn test_basic_export() {
     let expected_json = serde_json::json!({
         "FAKE_VAR": "true",
         "ENVOLUNTARY_ENV_STATE": "KLUv/QQ4dQMArAYAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1Yjpvd25lci9yZXBvIl0sImVudl92YXJzX3Jlc2V0Ijp7IkZBS0VfVkFSIjpudWxsLCJFTlZPTFVOVEFSWV9FTlZfU1RBVEUiOm51bGx9fQCbvTM7"
     });
     export_and_check(&Inputs::new("/some/dir", expected_json));
+}
 
-    // // Case 3: Update state
+#[test]
+fn test_update_existing_state() {
     let expected_update_json = serde_json::json!({
         "FAKE_VAR": "true",
         "ENVOLUNTARY_ENV_STATE": "KLUv/QQ4HQQAHAcAeyJmbGFrZV9yZWZlcmVuY2VzIjpbImdpdGh1YjpvdGhlcl9fb3duZXIvcmVwbyJdLCJlbnZfdmFyc19yZXNldCI6eyJGQUtFX1ZBUiI6bnVsbCwiRU5WT0xVTlRBUllfRU5WX1NUQVRFIjpudWxsfX0BqBDj//0Qww8Qow+DMUZWbCwq",
     });
 
+    let test_vals = build_test_vals();
     export_and_check(&Inputs {
         extra_script: Some(load_nu_env_string(&test_vals, "/home/some/other/dir")),
+        test_vals: Some(&test_vals),
         ..Inputs::new("/some/dir", expected_update_json)
     });
+}
 
-    // Case 4: Export in a dir, re-export in same dir
+#[test]
+fn test_export_twice_in_same_dir() {
+    let test_vals = build_test_vals();
     export_and_check(&Inputs {
         extra_script: Some(load_nu_env_string(&test_vals, "/home/some/other/dir")),
+        test_vals: Some(&test_vals),
         ..Inputs::new("/home/some/other/dir", serde_json::json!({}))
     });
+}
 
-    // Case 5: Reset state
+#[test]
+fn test_reset_state() {
+    let test_vals = build_test_vals();
     export_and_check(&Inputs {
         extra_script: Some(load_nu_env_string(&test_vals, "/")),
+        test_vals: Some(&test_vals),
         ..Inputs::new(
             "/home/some/other/dir",
             serde_json::json!({"ENVOLUNTARY_ENV_STATE": null}),
         )
     });
+}
 
-    // Case 6: Adjacent pattern matching
+#[test]
+fn test_adjacent_pattern_matching() {
     let adjacent_test_vals = build_test_vals();
     let bin_dir = &adjacent_test_vals.bin_dir.to_string_lossy().into_owned();
     export_and_check(&Inputs {
@@ -153,8 +164,10 @@ fn test_nushell_export_state_init_update_and_reset() {
             }),
         )
     });
+}
 
-    // Case 7: Home directory adjacent pattern
+#[test]
+fn test_adjacent_home_pattern_matching() {
     let home_dir = tempfile::tempdir().unwrap();
     let home_path = home_dir.path().to_string_lossy();
     fs::File::create_new(home_dir.path().join(".awesometool")).unwrap();
